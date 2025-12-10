@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>נגן הקלטה - תיק הלימודים החכם</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -31,8 +32,8 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px);}
-            to   { opacity: 1; transform: translateY(0);}
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
         h1 {
@@ -112,7 +113,7 @@
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin { to { transform: rotate(360deg);} }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .error-title { color: #dc2626; margin-bottom: 8px; }
         .error-message { color: #64748b; }
@@ -120,6 +121,7 @@
 </head>
 
 <body>
+
 <div class="container" id="container">
     <div class="loading">
         <div class="spinner"></div>
@@ -132,19 +134,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("container");
     const params = new URLSearchParams(location.search);
 
+    // ✅ ID קצר מה-URL
     const id = params.get("id");
+
     const date = params.get("date") || "לא ידוע";
     const duration = params.get("duration") || "לא ידוע";
 
-    if (!id) return showError();
+    if (!id) {
+        showError();
+        return;
+    }
 
+    // ✅ שליפה מה-localStorage (במקום URL ארוך)
     const audioSrc = localStorage.getItem(id);
-    if (!audioSrc) return showError();
+
+    if (!audioSrc) {
+        showError();
+        return;
+    }
 
     showPlayer(audioSrc, date, duration);
 });
 
 function showPlayer(src, date, duration) {
+    const container = document.getElementById("container");
+
     container.innerHTML = `
         <div style="font-size:4rem">🎧</div>
         <h1>הקלטה משותפת</h1>
@@ -153,6 +167,7 @@ function showPlayer(src, date, duration) {
         <div class="player-wrapper">
             <audio controls autoplay>
                 <source src="${src}" type="audio/webm">
+                הדפדפן שלך לא תומך בנגן אודיו
             </audio>
         </div>
 
@@ -162,7 +177,7 @@ function showPlayer(src, date, duration) {
                 <span class="info-value">${date}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">⏱ משך</span>
+                <span class="info-label">⏱ מסת</span>
                 <span class="info-value">${duration}</span>
             </div>
         </div>
@@ -178,11 +193,13 @@ function showPlayer(src, date, duration) {
 }
 
 function showError() {
+    const container = document.getElementById("container");
+
     container.innerHTML = `
         <div>
             <div style="font-size:3.5rem">😕</div>
             <h2 class="error-title">לא נמצאה הקלטה</h2>
-            <p class="error-message">ייתכן שהקישור פג תוקף</p>
+            <p class="error-message">ייתכן שהקישור פג תוקף או שאינו שייך למכשיר זה</p>
             <div class="branding">
                 <a href="index.html">📚 חזרה לאתר</a>
             </div>
@@ -199,5 +216,6 @@ function downloadAudio(src, date) {
     document.body.removeChild(a);
 }
 </script>
+
 </body>
 </html>

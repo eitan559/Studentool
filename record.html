@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>הקלטה</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Heebo&display=swap" rel="stylesheet">
+
+<style>
+body{
+    font-family: Heebo, sans-serif;
+    background:#2563eb;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.box{
+    background:white;
+    padding:30px;
+    border-radius:20px;
+    width:360px;
+    text-align:center;
+}
+button{
+    padding:12px 20px;
+    border:none;
+    border-radius:12px;
+    font-size:16px;
+    cursor:pointer;
+    margin:8px;
+}
+.start{background:#22c55e;color:white}
+.stop{background:#ef4444;color:white}
+.link{
+    margin-top:15px;
+    word-break:break-all;
+    background:#f1f5f9;
+    padding:10px;
+    border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+<div class="box">
+    <h2>🎙 הקלטה</h2>
+
+    <button class="start" onclick="start()">התחל</button>
+    <button class="stop" onclick="stop()">עצור</button>
+
+    <div class="link" id="linkBox"></div>
+</div>
+
+<script>
+let recorder;
+let chunks = [];
+
+async function start(){
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(stream);
+    chunks = [];
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.start();
+}
+
+function stop(){
+    recorder.stop();
+
+    recorder.onstop = () => {
+        const blob = new Blob(chunks, { type:"audio/webm" });
+        const audioURL = URL.createObjectURL(blob);
+
+        const id = "rec_" + Date.now();
+        localStorage.setItem(id, audioURL);
+
+        const link =
+            location.origin +
+            location.pathname.replace("record.html","player.html") +
+            "?id=" + id;
+
+        document.getElementById("linkBox").innerHTML =
+            "🔗 קישור:<br><a href='"+link+"'>"+link+"</a>";
+    };
+}
+</script>
+</body>
+</html>
