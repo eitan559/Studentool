@@ -1,219 +1,28 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>נגן הקלטה - תיק הלימודים החכם</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Heebo', sans-serif;
-            background: linear-gradient(135deg, #1e3a5f, #2563eb, #3b82f6);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: #fff;
-            border-radius: 24px;
-            padding: 45px 40px;
-            box-shadow: 0 25px 50px rgba(0,0,0,.25);
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-            animation: fadeIn .4s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        h1 {
-            color: #1e3a5f;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: #64748b;
-            margin-bottom: 25px;
-        }
-
-        .player-wrapper {
-            background: linear-gradient(135deg,#f8fafc,#e2e8f0);
-            padding: 25px;
-            border-radius: 18px;
-            margin: 20px 0;
-        }
-
-        audio { width: 100%; }
-
-        .info {
-            background: #f1f5f9;
-            padding: 18px;
-            border-radius: 14px;
-            margin-top: 20px;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .info-item:last-child { border-bottom: none; }
-
-        .info-label { color: #64748b; }
-        .info-value { font-weight: 600; color: #1e3a5f }
-
-        .download-btn {
-            margin-top: 22px;
-            background: linear-gradient(135deg,#2563eb,#3b82f6);
-            color: #fff;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 14px;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-
-        .branding {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .branding a {
-            text-decoration: none;
-            color: #2563eb;
-            font-weight: 600;
-        }
-
-        .loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid #e2e8f0;
-            border-top-color: #2563eb;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .error-title { color: #dc2626; margin-bottom: 8px; }
-        .error-message { color: #64748b; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Studentool – Player</title>
 </head>
-
 <body>
 
-<div class="container" id="container">
-    <div class="loading">
-        <div class="spinner"></div>
-        <p>טוען הקלטה...</p>
-    </div>
-</div>
+<h2>▶️ נגן</h2>
+<audio id="audio" controls></audio>
+<br><br>
+<button onclick="clearAudio()">🗑️ מחק הקלטה</button>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    const container = document.getElementById("container");
-    const params = new URLSearchParams(location.search);
+const audioData = localStorage.getItem("studentoolAudio");
 
-    // ✅ ID קצר מה-URL
-    const id = params.get("id");
-
-    const date = params.get("date") || "לא ידוע";
-    const duration = params.get("duration") || "לא ידוע";
-
-    if (!id) {
-        showError();
-        return;
-    }
-
-    // ✅ שליפה מה-localStorage (במקום URL ארוך)
-    const audioSrc = localStorage.getItem(id);
-
-    if (!audioSrc) {
-        showError();
-        return;
-    }
-
-    showPlayer(audioSrc, date, duration);
-});
-
-function showPlayer(src, date, duration) {
-    const container = document.getElementById("container");
-
-    container.innerHTML = `
-        <div style="font-size:4rem">🎧</div>
-        <h1>הקלטה משותפת</h1>
-        <p class="subtitle">מתיק הלימודים החכם</p>
-
-        <div class="player-wrapper">
-            <audio controls autoplay>
-                <source src="${src}" type="audio/webm">
-                הדפדפן שלך לא תומך בנגן אודיו
-            </audio>
-        </div>
-
-        <div class="info">
-            <div class="info-item">
-                <span class="info-label">📅 תאריך</span>
-                <span class="info-value">${date}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">⏱ מסת</span>
-                <span class="info-value">${duration}</span>
-            </div>
-        </div>
-
-        <button class="download-btn" onclick="downloadAudio('${src}','${date}')">
-            💾 הורד הקלטה
-        </button>
-
-        <div class="branding">
-            <a href="index.html">📚 חזרה לתיק הלימודים</a>
-        </div>
-    `;
+if (!audioData) {
+  alert("לא נמצאה הקלטה");
+} else {
+  document.getElementById("audio").src = audioData;
 }
 
-function showError() {
-    const container = document.getElementById("container");
-
-    container.innerHTML = `
-        <div>
-            <div style="font-size:3.5rem">😕</div>
-            <h2 class="error-title">לא נמצאה הקלטה</h2>
-            <p class="error-message">ייתכן שהקישור פג תוקף או שאינו שייך למכשיר זה</p>
-            <div class="branding">
-                <a href="index.html">📚 חזרה לאתר</a>
-            </div>
-        </div>
-    `;
-}
-
-function downloadAudio(src, date) {
-    const a = document.createElement("a");
-    a.href = src;
-    a.download = "recording-" + date + ".webm";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+function clearAudio() {
+  localStorage.removeItem("studentoolAudio");
+  alert("ההקלטה נמחקה");
 }
 </script>
 
