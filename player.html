@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>נגן הקלטה - תיק הלימודים החכם</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #3b82f6 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 50px 40px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        h1 {
+            color: #1e3a5f;
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+        
+        .player-wrapper {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        audio {
+            width: 100%;
+            margin: 15px 0;
+            border-radius: 30px;
+        }
+        
+        audio::-webkit-media-controls-panel {
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        }
+        
+        .info {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 25px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .info-value {
+            color: #1e3a5f;
+            font-weight: 600;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: 'Heebo', sans-serif;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+        }
+        
+        .branding {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .branding a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .branding a:hover {
+            text-decoration: underline;
+        }
+        
+        .error-container {
+            text-align: center;
+        }
+        
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .error-title {
+            color: #dc2626;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .error-message {
+            color: #64748b;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="playerContainer">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>טוען הקלטה...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('playerContainer');
+            const loading = document.getElementById('loading');
+            
+            // Get recording data from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const audioData = urlParams.get('data');
+            const recordingDate = urlParams.get('date') || 'לא ידוע';
+            const recordingDuration = urlParams.get('duration') || 'לא ידוע';
+            
+            setTimeout(() => {
+                if (!audioData) {
+                    showError();
+                    return;
+                }
+                
+                try {
+                    // Decode the audio data
+                    const decodedData = decodeURIComponent(audioData);
+                    showPlayer(decodedData, recordingDate, recordingDuration);
+                } catch (e) {
+                    showError();
+                }
+            }, 500);
+            
+            function showPlayer(audioSrc, date, duration) {
+                container.innerHTML = `
+                    <div class="icon">🎧</div>
+                    <h1>הקלטה משותפת</h1>
+                    <p class="subtitle">מתיק הלימודים החכם</p>
+                    
+                    <div class="player-wrapper">
+                        <audio controls autoplay id="audioPlayer">
+                            <source src="${audioSrc}" type="audio/webm">
+                            הדפדפן שלך לא תומך בנגן אודיו
+                        </audio>
+                    </div>
+                    
+                    <div class="info">
+                        <div class="info-item">
+                            <span class="info-label">📅 תאריך</span>
+                            <span class="info-value">${date}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">⏱️ משך</span>
+                            <span class="info-value">${duration}</span>
+                        </div>
+                    </div>
+                    
+                    <button class="download-btn" onclick="downloadRecording()">
+                        💾 הורד הקלטה
+                    </button>
+                    
+                    <div class="branding">
+                        <a href="index.html">
+                            📚 עבור לתיק הלימודים החכם
+                        </a>
+                    </div>
+                `;
+                
+                // Store for download
+                window.currentAudioSrc = audioSrc;
+                window.currentDate = date;
+            }
+            
+            function showError() {
+                container.innerHTML = `
+                    <div class="error-container">
+                        <div class="error-icon">😕</div>
+                        <h2 class="error-title">לא נמצאה הקלטה</h2>
+                        <p class="error-message">ייתכן שהקישור פג תוקף או שגוי</p>
+                        <div class="branding" style="margin-top: 30px;">
+                            <a href="index.html">
+                                📚 עבור לתיק הלימודים החכם
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        function downloadRecording() {
+            if (window.currentAudioSrc) {
+                const a = document.createElement('a');
+                a.href = window.currentAudioSrc;
+                a.download = `recording-${window.currentDate || 'audio'}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+    </script>
+</body>
+</html>
