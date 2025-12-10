@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תיק הלימודים החכם | פלטפורמת למידה לתלמידים</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Added Auth Modal for Login/Register -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-modal">
+            <div class="auth-header">
+                <div class="auth-logo">📚</div>
+                <h2>תיק הלימודים החכם</h2>
+                <p>הפלטפורמה שלך להצלחה בלימודים</p>
+            </div>
+            
+            <!-- Login Form -->
+            <div class="auth-form" id="loginForm">
+                <h3>התחברות</h3>
+                <div class="form-group">
+                    <label>אימייל</label>
+                    <input type="email" id="loginEmail" placeholder="your@email.com" dir="ltr">
+                </div>
+                <div class="form-group">
+                    <label>סיסמה</label>
+                    <input type="password" id="loginPassword" placeholder="הכנס סיסמה">
+                </div>
+                <button class="btn btn-primary btn-full" id="loginBtn">התחבר</button>
+                <p class="auth-switch">אין לך חשבון? <a href="#" id="showRegister">הירשם עכשיו</a></p>
+            </div>
+            
+            <!-- Register Form -->
+            <div class="auth-form hidden" id="registerForm">
+                <h3>יצירת חשבון חדש</h3>
+                <div class="form-group">
+                    <label>שם מלא</label>
+                    <input type="text" id="registerName" placeholder="השם שלך">
+                </div>
+                <div class="form-group">
+                    <label>אימייל</label>
+                    <input type="email" id="registerEmail" placeholder="your@email.com" dir="ltr">
+                </div>
+                <div class="form-group">
+                    <label>סיסמה</label>
+                    <input type="password" id="registerPassword" placeholder="לפחות 6 תווים">
+                </div>
+                <div class="form-group">
+                    <label>כיתה</label>
+                    <select id="registerGrade">
+                        <option value="4">כיתה ד'</option>
+                        <option value="5">כיתה ה'</option>
+                        <option value="6">כיתה ו'</option>
+                        <option value="7">כיתה ז'</option>
+                        <option value="8">כיתה ח'</option>
+                        <option value="9">כיתה ט'</option>
+                        <option value="10">כיתה י'</option>
+                        <option value="11">כיתה י"א</option>
+                        <option value="12">כיתה י"ב</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-full" id="registerBtn">צור חשבון</button>
+                <p class="auth-switch">יש לך חשבון? <a href="#" id="showLogin">התחבר</a></p>
+            </div>
+            
+            <div class="auth-error hidden" id="authError"></div>
+        </div>
+    </div>
+
+    <!-- Added Settings Modal -->
+    <div class="settings-overlay hidden" id="settingsOverlay">
+        <div class="settings-modal">
+            <div class="settings-header">
+                <h2>הגדרות חשבון</h2>
+                <button class="close-btn" id="closeSettings">&times;</button>
+            </div>
+            
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h3>פרטים אישיים</h3>
+                    <div class="form-group">
+                        <label>שם התצוגה</label>
+                        <input type="text" id="settingsName" placeholder="השם שלך">
+                    </div>
+                    <div class="form-group">
+                        <label>כיתה</label>
+                        <select id="settingsGrade">
+                            <option value="4">כיתה ד'</option>
+                            <option value="5">כיתה ה'</option>
+                            <option value="6">כיתה ו'</option>
+                            <option value="7">כיתה ז'</option>
+                            <option value="8">כיתה ח'</option>
+                            <option value="9">כיתה ט'</option>
+                            <option value="10">כיתה י'</option>
+                            <option value="11">כיתה י"א</option>
+                            <option value="12">כיתה י"ב</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>אימייל</label>
+                        <input type="email" id="settingsEmail" disabled>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>העדפות תצוגה</h3>
+                    <div class="form-group">
+                        <label>שפת הממשק</label>
+                        <select id="settingsLanguage">
+                            <option value="he">עברית</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ערכת צבעים</label>
+                        <select id="settingsTheme">
+                            <option value="light">בהיר</option>
+                            <option value="dark">כהה</option>
+                            <option value="blue">כחול</option>
+                            <option value="green">ירוק</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>גודל גופן</label>
+                        <select id="settingsFontSize">
+                            <option value="small">קטן</option>
+                            <option value="medium">בינוני</option>
+                            <option value="large">גדול</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>התראות</h3>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="settingsNotifyPomodoro" checked> התראות פומודורו</label>
+                        <label><input type="checkbox" id="settingsNotifyTasks" checked> תזכורות משימות</label>
+                        <label><input type="checkbox" id="settingsSound" checked> צלילי התראה</label>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>נתונים</h3>
+                    <div class="settings-data-actions">
+                        <button class="btn btn-secondary" id="exportData">ייצוא נתונים</button>
+                        <button class="btn btn-danger" id="clearData">מחיקת כל הנתונים</button>
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button class="btn btn-primary" id="saveSettings">שמור הגדרות</button>
+                    <button class="btn btn-danger" id="logoutBtn">התנתק</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text" data-translate="appName">תיק הלימודים החכם</span>
+            </div>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#home" class="nav-link active" data-section="home" data-translate="nav.home">בית</a></li>
+                <li><a href="#writing" class="nav-link" data-section="writing" data-translate="nav.writing">כתיבה</a></li>
+                <li><a href="#learning" class="nav-link" data-section="learning" data-translate="nav.learning">למידה</a></li>
+                <li><a href="#voice" class="nav-link" data-section="voice" data-translate="nav.voice">קול</a></li>
+                <li><a href="#tools" class="nav-link" data-section="tools" data-translate="nav.tools">כלים</a></li>
+                <li><a href="#planner" class="nav-link" data-section="planner" data-translate="nav.planner">תכנון</a></li>
+            </ul>
+            <!-- Added user profile button in navbar -->
+            <div class="user-menu">
+                <button class="user-btn" id="userMenuBtn">
+                    <span class="user-avatar" id="userAvatar">👤</span>
+                    <span class="user-name" id="userName">משתמש</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Home Section -->
+        <section id="home" class="section active">
+            <div class="hero">
+                <div class="hero-content">
+                    <!-- Added personalized greeting -->
+                    <h1 class="hero-title" id="heroGreeting" data-translate="hero.title">תיק הלימודים החכם שלך</h1>
+                    <p class="hero-subtitle" data-translate="hero.subtitle">כל הכלים שאתה צריך להצלחה בלימודים - במקום אחד</p>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">15+</span>
+                            <span class="stat-label" data-translate="hero.tools">כלי למידה</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="userStreak">0</span>
+                            <span class="stat-label" data-translate="hero.streak">ימי למידה רצופים</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="userPoints">0</span>
+                            <span class="stat-label" data-translate="hero.points">נקודות</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Added quick stats dashboard -->
+            <div class="quick-stats" id="quickStats">
+                <div class="quick-stat-card">
+                    <div class="quick-stat-icon">📝</div>
+                    <div class="quick-stat-info">
+                        <span class="quick-stat-value" id="statTasks">0</span>
+                        <span class="quick-stat-label" data-translate="stats.tasks">משימות להיום</span>
+                    </div>
+                </div>
+                <div class="quick-stat-card">
+                    <div class="quick-stat-icon">⏱️</div>
+                    <div class="quick-stat-info">
+                        <span class="quick-stat-value" id="statPomodoros">0</span>
+                        <span class="quick-stat-label" data-translate="stats.pomodoros">סבבי פומודורו</span>
+                    </div>
+                </div>
+                <div class="quick-stat-card">
+                    <div class="quick-stat-icon">📚</div>
+                    <div class="quick-stat-info">
+                        <span class="quick-stat-value" id="statNotes">0</span>
+                        <span class="quick-stat-label" data-translate="stats.notes">הערות שמורות</span>
+                    </div>
+                </div>
+                <div class="quick-stat-card">
+                    <div class="quick-stat-icon">🎯</div>
+                    <div class="quick-stat-info">
+                        <span class="quick-stat-value" id="statCompleted">0</span>
+                        <span class="quick-stat-label" data-translate="stats.completed">משימות שהושלמו</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tools-grid">
+                <div class="tool-card" data-tool="essay-writer">
+                    <div class="tool-icon">✍️</div>
+                    <h3 data-translate="tools.essayWriter">כותב חיבורים</h3>
+                    <p data-translate="tools.essayWriterDesc">יצירת חיבורים מובנים בעברית</p>
+                </div>
+                <div class="tool-card" data-tool="essay-improver">
+                    <div class="tool-icon">📝</div>
+                    <h3 data-translate="tools.essayImprover">משפר טקסטים</h3>
+                    <p data-translate="tools.essayImproverDesc">שיפור דקדוק, בהירות ומבנה</p>
+                </div>
+                <div class="tool-card" data-tool="homework-helper">
+                    <div class="tool-icon">📖</div>
+                    <h3 data-translate="tools.homeworkHelper">עוזר שיעורי בית</h3>
+                    <p data-translate="tools.homeworkHelperDesc">הסברים צעד אחר צעד</p>
+                </div>
+                <div class="tool-card" data-tool="math-solver">
+                    <div class="tool-icon">🔢</div>
+                    <h3 data-translate="tools.mathSolver">פותר מתמטיקה</h3>
+                    <p data-translate="tools.mathSolverDesc">פתרון משוואות עם הסברים</p>
+                </div>
+                <div class="tool-card" data-tool="voice-recorder">
+                    <div class="tool-icon">🎤</div>
+                    <h3 data-translate="tools.voiceRecorder">מקליט קול</h3>
+                    <p data-translate="tools.voiceRecorderDesc">הקלטה, שמירה והשמעה</p>
+                </div>
+                <div class="tool-card" data-tool="voice-to-text">
+                    <div class="tool-icon">🗣️</div>
+                    <h3 data-translate="tools.voiceToText">דיבור לטקסט</h3>
+                    <p data-translate="tools.voiceToTextDesc">המרת דיבור לכתב בעברית</p>
+                </div>
+                <div class="tool-card" data-tool="reading-practice">
+                    <div class="tool-icon">📚</div>
+                    <h3 data-translate="tools.readingPractice">תרגול קריאה</h3>
+                    <p data-translate="tools.readingPracticeDesc">שיפור מהירות ודיוק הקריאה</p>
+                </div>
+                <div class="tool-card" data-tool="summarizer">
+                    <div class="tool-icon">📋</div>
+                    <h3 data-translate="tools.summarizer">מסכם טקסטים</h3>
+                    <p data-translate="tools.summarizerDesc">קיצור טקסטים ארוכים</p>
+                </div>
+                <div class="tool-card" data-tool="quiz-generator">
+                    <div class="tool-icon">❓</div>
+                    <h3 data-translate="tools.quizGenerator">יוצר שאלות</h3>
+                    <p data-translate="tools.quizGeneratorDesc">יצירת מבחנים ושאלונים</p>
+                </div>
+                <div class="tool-card" data-tool="study-planner">
+                    <div class="tool-icon">📅</div>
+                    <h3 data-translate="tools.studyPlanner">מתכנן לימודים</h3>
+                    <p data-translate="tools.studyPlannerDesc">יצירת לוח זמנים חכם</p>
+                </div>
+                <div class="tool-card" data-tool="chat-tutor">
+                    <div class="tool-icon">🤖</div>
+                    <h3 data-translate="tools.chatTutor">מורה AI חכם</h3>
+                    <p data-translate="tools.chatTutorDesc">שיחה חכמה ועזרה מותאמת</p>
+                </div>
+                <!-- Added new tools -->
+                <div class="tool-card" data-tool="flashcards">
+                    <div class="tool-icon">🃏</div>
+                    <h3 data-translate="tools.flashcards">כרטיסיות לימוד</h3>
+                    <p data-translate="tools.flashcardsDesc">למידה בשיטת הזיכרון</p>
+                </div>
+                <div class="tool-card" data-tool="dictionary">
+                    <div class="tool-icon">📖</div>
+                    <h3 data-translate="tools.dictionary">מילון</h3>
+                    <p data-translate="tools.dictionaryDesc">הגדרות ומילים נרדפות</p>
+                </div>
+                <div class="tool-card" data-tool="translator">
+                    <div class="tool-icon">🌍</div>
+                    <h3 data-translate="tools.translator">מתרגם</h3>
+                    <p data-translate="tools.translatorDesc">תרגום מהיר בין שפות</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Writing Section -->
+        <section id="writing" class="section">
+            <div class="section-header">
+                <h2 data-translate="writing.title">כלי כתיבה</h2>
+                <p data-translate="writing.subtitle">יצירה ושיפור טקסטים בעברית</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="essay-writer" data-translate="writing.essayWriter">כותב חיבורים</button>
+                <button class="tab-btn" data-tab="essay-improver" data-translate="writing.essayImprover">משפר טקסטים</button>
+            </div>
+
+            <!-- Essay Writer -->
+            <div class="tab-content active" id="essay-writer-tab">
+                <div class="tool-panel">
+                    <h3>✍️ <span data-translate="essayWriter.title">כותב חיבורים חכם</span></h3>
+                    <div class="form-group">
+                        <label data-translate="essayWriter.topic">נושא החיבור</label>
+                        <input type="text" id="essayTopic" placeholder="לדוגמה: חופש הביטוי בעידן הדיגיטלי">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-translate="essayWriter.length">אורך</label>
+                            <select id="essayLength">
+                                <option value="short">קצר (150-200 מילים)</option>
+                                <option value="medium" selected>בינוני (300-400 מילים)</option>
+                                <option value="long">ארוך (500-600 מילים)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-translate="essayWriter.style">סגנון</label>
+                            <select id="essayStyle">
+                                <option value="argumentative">טיעוני</option>
+                                <option value="descriptive">תיאורי</option>
+                                <option value="narrative">סיפורי</option>
+                                <option value="analytical">אנליטי</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="generateEssay" data-translate="essayWriter.generate">צור חיבור</button>
+                    <div class="output-area" id="essayOutput"></div>
+                </div>
+            </div>
+
+            <!-- Essay Improver -->
+            <div class="tab-content" id="essay-improver-tab">
+                <div class="tool-panel">
+                    <h3>📝 <span data-translate="essayImprover.title">משפר טקסטים</span></h3>
+                    <div class="form-group">
+                        <label data-translate="essayImprover.input">הדבק את הטקסט לשיפור</label>
+                        <textarea id="textToImprove" rows="6" placeholder="הדבק כאן את הטקסט שברצונך לשפר..."></textarea>
+                    </div>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="improveGrammar" checked> <span data-translate="essayImprover.grammar">תיקון דקדוק</span></label>
+                        <label><input type="checkbox" id="improveClarity" checked> <span data-translate="essayImprover.clarity">שיפור בהירות</span></label>
+                        <label><input type="checkbox" id="improveStructure"> <span data-translate="essayImprover.structure">שיפור מבנה</span></label>
+                        <label><input type="checkbox" id="improveVocabulary"> <span data-translate="essayImprover.vocabulary">העשרת אוצר מילים</span></label>
+                    </div>
+                    <button class="btn btn-primary" id="improveText" data-translate="essayImprover.improve">שפר טקסט</button>
+                    <div class="output-area" id="improvedTextOutput"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Learning Section -->
+        <section id="learning" class="section">
+            <div class="section-header">
+                <h2 data-translate="learning.title">כלי למידה</h2>
+                <p data-translate="learning.subtitle">עזרה בשיעורי בית ופתרון בעיות</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="homework">עוזר שיעורי בית</button>
+                <button class="tab-btn" data-tab="math">פותר מתמטיקה</button>
+                <button class="tab-btn" data-tab="summarizer">מסכם טקסטים</button>
+                <button class="tab-btn" data-tab="quiz">יוצר שאלות</button>
+                <button class="tab-btn" data-tab="flashcards">כרטיסיות</button>
+                <button class="tab-btn" data-tab="dictionary">מילון</button>
+            </div>
+
+            <!-- Homework Helper -->
+            <div class="tab-content active" id="homework-tab">
+                <div class="tool-panel">
+                    <h3>📖 עוזר שיעורי בית</h3>
+                    <div class="form-group">
+                        <label>מקצוע</label>
+                        <select id="homeworkSubject">
+                            <option value="hebrew">עברית</option>
+                            <option value="math">מתמטיקה</option>
+                            <option value="english">אנגלית</option>
+                            <option value="science">מדעים</option>
+                            <option value="history">היסטוריה</option>
+                            <option value="bible">תנ"ך</option>
+                            <option value="civics">אזרחות</option>
+                            <option value="literature">ספרות</option>
+                            <option value="geography">גיאוגרפיה</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>השאלה או הנושא</label>
+                        <textarea id="homeworkQuestion" rows="4" placeholder="כתוב כאן את השאלה או הנושא שאתה צריך עזרה בו..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="getHomeworkHelp">קבל עזרה</button>
+                    <div class="output-area" id="homeworkOutput"></div>
+                </div>
+            </div>
+
+            <!-- Math Solver -->
+            <div class="tab-content" id="math-tab">
+                <div class="tool-panel">
+                    <h3>🔢 פותר מתמטיקה</h3>
+                    <div class="form-group">
+                        <label>סוג התרגיל</label>
+                        <select id="mathType">
+                            <option value="linear">משוואה ממעלה ראשונה</option>
+                            <option value="quadratic">משוואה ריבועית</option>
+                            <option value="fractions">שברים</option>
+                            <option value="powers">חזקות</option>
+                            <option value="percentage">אחוזים</option>
+                            <option value="geometry">גיאומטריה</option>
+                            <option value="algebra">אלגברה</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>התרגיל (לדוגמה: 2x + 5 = 15)</label>
+                        <input type="text" id="mathProblem" placeholder="הכנס את התרגיל כאן...">
+                    </div>
+                    <button class="btn btn-primary" id="solveMath">פתור</button>
+                    <div class="output-area" id="mathOutput"></div>
+                </div>
+            </div>
+
+            <!-- Summarizer -->
+            <div class="tab-content" id="summarizer-tab">
+                <div class="tool-panel">
+                    <h3>📋 מסכם טקסטים חכם</h3>
+                    <div class="form-group">
+                        <label>הטקסט לסיכום</label>
+                        <textarea id="textToSummarize" rows="6" placeholder="הדבק כאן את הטקסט שברצונך לסכם..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>אורך הסיכום</label>
+                        <input type="range" id="summaryLength" min="10" max="50" value="30">
+                        <span id="summaryLengthValue">30%</span>
+                    </div>
+                    <button class="btn btn-primary" id="summarizeText">סכם טקסט</button>
+                    <div class="output-area" id="summaryOutput"></div>
+                </div>
+            </div>
+
+            <!-- Quiz Generator -->
+            <div class="tab-content" id="quiz-tab">
+                <div class="tool-panel">
+                    <h3>❓ יוצר שאלות ומבחנים</h3>
+                    <div class="form-group">
+                        <label>טקסט מקור</label>
+                        <textarea id="quizSourceText" rows="4" placeholder="הדבק כאן את הטקסט שממנו תרצה ליצור שאלות..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>סוג שאלות</label>
+                            <select id="quizType">
+                                <option value="multiple">רב ברירה</option>
+                                <option value="open">שאלות פתוחות</option>
+                                <option value="mixed">משולב</option>
+                                <option value="truefalse">נכון/לא נכון</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>מספר שאלות</label>
+                            <select id="quizCount">
+                                <option value="3">3</option>
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="generateQuiz">צור שאלות</button>
+                    <div class="output-area" id="quizOutput"></div>
+                </div>
+            </div>
+
+            <!-- Added Flashcards Tab -->
+            <div class="tab-content" id="flashcards-tab">
+                <div class="tool-panel">
+                    <h3>🃏 כרטיסיות לימוד</h3>
+                    <div class="flashcard-container">
+                        <div class="flashcard-create">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>שם הערכה</label>
+                                    <input type="text" id="flashcardDeck" placeholder="לדוגמה: מילים באנגלית">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>צד קדמי (שאלה)</label>
+                                    <input type="text" id="flashcardFront" placeholder="המילה או השאלה">
+                                </div>
+                                <div class="form-group">
+                                    <label>צד אחורי (תשובה)</label>
+                                    <input type="text" id="flashcardBack" placeholder="התשובה או ההגדרה">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" id="addFlashcard">הוסף כרטיסייה</button>
+                        </div>
+                        <div class="flashcard-deck" id="flashcardDeckDisplay">
+                            <div class="flashcard" id="currentFlashcard">
+                                <div class="flashcard-inner">
+                                    <div class="flashcard-front">
+                                        <p>לחץ להוספת כרטיסייה</p>
+                                    </div>
+                                    <div class="flashcard-back">
+                                        <p>התשובה תופיע כאן</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flashcard-controls">
+                                <button class="btn btn-secondary" id="prevFlashcard">⬅️ הקודם</button>
+                                <span id="flashcardCounter">0 / 0</span>
+                                <button class="btn btn-secondary" id="nextFlashcard">הבא ➡️</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Added Dictionary Tab -->
+            <div class="tab-content" id="dictionary-tab">
+                <div class="tool-panel">
+                    <h3>📖 מילון עברי</h3>
+                    <div class="form-group">
+                        <label>חפש מילה</label>
+                        <input type="text" id="dictionarySearch" placeholder="הכנס מילה לחיפוש...">
+                    </div>
+                    <button class="btn btn-primary" id="searchDictionary">חפש</button>
+                    <div class="output-area" id="dictionaryOutput"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Voice Section - keep existing -->
+        <section id="voice" class="section">
+            <div class="section-header">
+                <h2>כלי קול</h2>
+                <p>הקלטה, זיהוי דיבור ותרגול קריאה</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="recorder">מקליט קול</button>
+                <button class="tab-btn" data-tab="speech-to-text">דיבור לטקסט</button>
+                <button class="tab-btn" data-tab="reading">תרגול קריאה</button>
+                <button class="tab-btn" data-tab="translator">מתרגם</button>
+            </div>
+
+            <!-- Voice Recorder -->
+            <div class="tab-content active" id="recorder-tab">
+                <div class="tool-panel">
+                    <h3>🎤 מקליט קול</h3>
+                    <div class="recorder-container">
+                        <div class="recorder-display">
+                            <div class="recorder-timer" id="recorderTimer">00:00</div>
+                            <div class="recorder-visualizer" id="recorderVisualizer"></div>
+                        </div>
+                        <div class="recorder-controls">
+                            <button class="btn btn-record" id="startRecording">🎙️ התחל הקלטה</button>
+                            <button class="btn btn-stop" id="stopRecording" disabled>⏹️ עצור</button>
+                        </div>
+                    </div>
+                    <div class="recordings-list" id="recordingsList">
+                        <h4>ההקלטות שלי</h4>
+                        <div id="recordingsContainer"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speech to Text -->
+            <div class="tab-content" id="speech-to-text-tab">
+                <div class="tool-panel">
+                    <h3>🗣️ דיבור לטקסט</h3>
+                    <div class="speech-container">
+                        <div class="speech-status" id="speechStatus">לחץ על הכפתור והתחל לדבר</div>
+                        <button class="btn btn-speech" id="startSpeechRecognition">🎤 התחל זיהוי דיבור</button>
+                        <div class="speech-output" id="speechOutput"></div>
+                        <button class="btn btn-secondary" id="copySpeechText" style="display:none;">העתק טקסט</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reading Practice -->
+            <div class="tab-content" id="reading-tab">
+                <div class="tool-panel">
+                    <h3>📚 תרגול קריאה</h3>
+                    <div class="reading-container">
+                        <div class="form-group">
+                            <label>בחר רמת קושי</label>
+                            <select id="readingLevel">
+                                <option value="easy">קל (כיתות א-ג)</option>
+                                <option value="medium" selected>בינוני (כיתות ד-ו)</option>
+                                <option value="hard">מתקדם (כיתות ז-יב)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="getReadingText">קבל טקסט לתרגול</button>
+                        <div class="reading-text" id="readingText"></div>
+                        <div class="reading-controls" id="readingControls" style="display:none;">
+                            <div class="reading-timer">
+                                <span>זמן: </span>
+                                <span id="readingTimer">00:00</span>
+                            </div>
+                            <button class="btn btn-primary" id="startReading">🎤 התחל לקרוא</button>
+                            <button class="btn btn-secondary" id="stopReading" style="display:none;">סיים קריאה</button>
+                        </div>
+                        <div class="reading-results" id="readingResults"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Added Translator Tab -->
+            <div class="tab-content" id="translator-tab">
+                <div class="tool-panel">
+                    <h3>🌍 מתרגם</h3>
+                    <div class="translator-container">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>משפה</label>
+                                <select id="translateFrom">
+                                    <option value="he">עברית</option>
+                                    <option value="en">אנגלית</option>
+                                    <option value="ar">ערבית</option>
+                                    <option value="ru">רוסית</option>
+                                    <option value="fr">צרפתית</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary swap-btn" id="swapLanguages">⇄</button>
+                            <div class="form-group">
+                                <label>לשפה</label>
+                                <select id="translateTo">
+                                    <option value="en">אנגלית</option>
+                                    <option value="he">עברית</option>
+                                    <option value="ar">ערבית</option>
+                                    <option value="ru">רוסית</option>
+                                    <option value="fr">צרפתית</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>טקסט לתרגום</label>
+                            <textarea id="translateInput" rows="4" placeholder="הכנס טקסט לתרגום..."></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="translateText">תרגם</button>
+                        <div class="output-area" id="translateOutput"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tools Section -->
+        <section id="tools" class="section">
+            <div class="section-header">
+                <h2>כלים נוספים</h2>
+                <p>מחשבון, פנקס ורשימת משימות</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="calculator">מחשבון מדעי</button>
+                <button class="tab-btn" data-tab="notes">פנקס רשימות</button>
+                <button class="tab-btn" data-tab="todo">רשימת משימות</button>
+                <button class="tab-btn" data-tab="pomodoro">טיימר פומודורו</button>
+                <button class="tab-btn" data-tab="chat">מורה AI חכם</button>
+            </div>
+
+            <!-- Calculator - keep existing -->
+            <div class="tab-content active" id="calculator-tab">
+                <div class="tool-panel calculator-panel">
+                    <h3>🧮 מחשבון מדעי</h3>
+                    <div class="calculator">
+                        <input type="text" id="calcDisplay" class="calc-display" readonly value="0">
+                        <div class="calc-buttons">
+                            <button class="calc-btn func" data-action="clear">C</button>
+                            <button class="calc-btn func" data-action="backspace">⌫</button>
+                            <button class="calc-btn func" data-action="percent">%</button>
+                            <button class="calc-btn operator" data-action="divide">÷</button>
+                            
+                            <button class="calc-btn func" data-action="sin">sin</button>
+                            <button class="calc-btn" data-action="7">7</button>
+                            <button class="calc-btn" data-action="8">8</button>
+                            <button class="calc-btn" data-action="9">9</button>
+                            <button class="calc-btn operator" data-action="multiply">×</button>
+                            
+                            <button class="calc-btn func" data-action="cos">cos</button>
+                            <button class="calc-btn" data-action="4">4</button>
+                            <button class="calc-btn" data-action="5">5</button>
+                            <button class="calc-btn" data-action="6">6</button>
+                            <button class="calc-btn operator" data-action="subtract">−</button>
+                            
+                            <button class="calc-btn func" data-action="tan">tan</button>
+                            <button class="calc-btn" data-action="1">1</button>
+                            <button class="calc-btn" data-action="2">2</button>
+                            <button class="calc-btn" data-action="3">3</button>
+                            <button class="calc-btn operator" data-action="add">+</button>
+                            
+                            <button class="calc-btn func" data-action="sqrt">√</button>
+                            <button class="calc-btn func" data-action="power">x²</button>
+                            <button class="calc-btn" data-action="0">0</button>
+                            <button class="calc-btn" data-action="decimal">.</button>
+                            <button class="calc-btn equals" data-action="equals">=</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="tab-content" id="notes-tab">
+                <div class="tool-panel">
+                    <h3>📝 פנקס רשימות</h3>
+                    <div class="notes-container">
+                        <div class="notes-sidebar">
+                            <button class="btn btn-primary" id="newNote">+ הערה חדשה</button>
+                            <div class="notes-list" id="notesList"></div>
+                        </div>
+                        <div class="notes-editor">
+                            <input type="text" id="noteTitle" placeholder="כותרת ההערה">
+                            <textarea id="noteContent" placeholder="כתוב כאן את ההערה שלך..."></textarea>
+                            <div class="notes-actions">
+                                <button class="btn btn-primary" id="saveNote">שמור</button>
+                                <button class="btn btn-danger" id="deleteNote">מחק</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Todo List -->
+            <div class="tab-content" id="todo-tab">
+                <div class="tool-panel">
+                    <h3>✅ רשימת שיעורי בית</h3>
+                    <div class="todo-container">
+                        <div class="todo-input">
+                            <input type="text" id="todoInput" placeholder="הוסף משימה חדשה...">
+                            <select id="todoPriority">
+                                <option value="low">נמוך</option>
+                                <option value="medium" selected>בינוני</option>
+                                <option value="high">גבוה</option>
+                            </select>
+                            <input type="date" id="todoDueDate">
+                            <button class="btn btn-primary" id="addTodo">הוסף</button>
+                        </div>
+                        <div class="todo-filters">
+                            <button class="filter-btn active" data-filter="all">הכל</button>
+                            <button class="filter-btn" data-filter="active">פעיל</button>
+                            <button class="filter-btn" data-filter="completed">הושלם</button>
+                        </div>
+                        <ul class="todo-list" id="todoList"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pomodoro Timer -->
+            <div class="tab-content" id="pomodoro-tab">
+                <div class="tool-panel">
+                    <h3>⏱️ טיימר פומודורו</h3>
+                    <div class="pomodoro-container">
+                        <div class="pomodoro-display">
+                            <div class="pomodoro-timer" id="pomodoroTimer">25:00</div>
+                            <div class="pomodoro-label" id="pomodoroLabel">זמן עבודה</div>
+                        </div>
+                        <div class="pomodoro-controls">
+                            <button class="btn btn-primary" id="startPomodoro">▶️ התחל</button>
+                            <button class="btn btn-secondary" id="pausePomodoro" style="display:none;">⏸️ השהה</button>
+                            <button class="btn btn-secondary" id="resetPomodoro">🔄 אפס</button>
+                        </div>
+                        <div class="pomodoro-settings">
+                            <div class="form-group">
+                                <label>זמן עבודה (דקות)</label>
+                                <input type="number" id="workTime" value="25" min="1" max="60">
+                            </div>
+                            <div class="form-group">
+                                <label>זמן הפסקה (דקות)</label>
+                                <input type="number" id="breakTime" value="5" min="1" max="30">
+                            </div>
+                        </div>
+                        <div class="pomodoro-stats">
+                            <span>סבבים שהושלמו: <strong id="pomodoroRounds">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Chat Tutor -->
+            <div class="tab-content" id="chat-tab">
+                <div class="tool-panel">
+                    <h3>🤖 מורה AI חכם</h3>
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-message bot">
+                                <div class="message-avatar">🤖</div>
+                                <div class="message-content">שלום! אני המורה הוירטואלי החכם שלך. אני יודע על מגוון רחב של נושאים - מתמטיקה, מדעים, היסטוריה, אנגלית, עברית ועוד. שאל אותי כל שאלה!</div>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="chatInput" placeholder="שאל אותי כל שאלה...">
+                            <button class="btn btn-primary" id="sendMessage">שלח</button>
+                        </div>
+                        <div class="chat-suggestions">
+                            <button class="suggestion-btn">איך לומדים למבחן?</button>
+                            <button class="suggestion-btn">מה זה פיתגורס?</button>
+                            <button class="suggestion-btn">טיפים לכתיבת חיבור</button>
+                            <button class="suggestion-btn">מה זה פוטוסינתזה?</button>
+                            <button class="suggestion-btn">עזור לי באנגלית</button>
+                            <button class="suggestion-btn">מהי מלחמת העולם השנייה?</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Planner Section -->
+        <section id="planner" class="section">
+            <div class="section-header">
+                <h2>מתכנן לימודים חכם</h2>
+                <p>צור לוח זמנים מותאם אישית</p>
+            </div>
+
+            <div class="tool-panel planner-panel">
+                <div class="planner-form">
+                    <h3>📅 הגדרות התכנון</h3>
+                    <div class="form-group">
+                        <label>מקצועות ללימוד</label>
+                        <div class="subjects-grid" id="subjectsGrid">
+                            <label class="subject-checkbox">
+                                <input type="checkbox" value="מתמטיקה" checked>
+                                <span>מתמטיקה</span>
+                            </label>
+                            <label class="subject-checkbox">
+                                <input type="checkbox" value="אנגלית" checked>
+                                <span>אנגלית</span>
+                            </label>
+                            <label class="subject-checkbox">
+                                <input type="checkbox" value="עברית">
+                                <span>עברית</span>
+                            </label>
+                            <label class="subject-checkbox">
+                                <input type="checkbox" value="מדעים">
+                                <span>מדעים</span>
+                            </label>
+                            <label class="subject-checkbox">
+                                <input type="checkbox" value="היסטוריה">
+                                <span>היסטוריה</span>
+                            </label>
+                            <label class="subject-checkbox">
+                                <input type="checkbox" value="תנ&quot;ך">
+                                <span>תנ"ך</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>שעות לימוד ביום</label>
+                            <select id="studyHours">
+                                <option value="1">שעה אחת</option>
+                                <option value="2" selected>שעתיים</option>
+                                <option value="3">3 שעות</option>
+                                <option value="4">4 שעות</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ימי לימוד בשבוע</label>
+                            <select id="studyDays">
+                                <option value="5">5 ימים</option>
+                                <option value="6" selected>6 ימים</option>
+                                <option value="7">כל יום</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>שעת התחלה מועדפת</label>
+                        <input type="time" id="startTime" value="16:00">
+                    </div>
+                    <button class="btn btn-primary" id="generatePlan">צור לוח זמנים</button>
+                </div>
+
+                <div class="planner-output" id="plannerOutput"></div>
+            </div>
+        </section>
+
+        <!-- Credits Section -->
+        <section class="page-section" id="credits-section">
+            <div class="section-header">
+                <h2>קרדיטים</h2>
+                <p>תודות והוקרה</p>
+            </div>
+            <div class="credits-container">
+                <div class="credits-card main-credit">
+                    <div class="credits-icon">👨‍💻</div>
+                    <h3>פיתוח ועיצוב</h3>
+                    <p class="credit-name">תלמיד חכם</p>
+                    <p class="credit-desc">פיתוח הפלטפורמה המלאה, עיצוב ממשק המשתמש, ופיתוח כל הכלים</p>
+                </div>
+                
+                <div class="credits-grid">
+                    <div class="credits-card">
+                        <div class="credits-icon">🎨</div>
+                        <h3>עיצוב</h3>
+                        <p>עיצוב מודרני ונגיש לכל הגילאים</p>
+                    </div>
+                    
+                    <div class="credits-card">
+                        <div class="credits-icon">🤖</div>
+                        <h3>בינה מלאכותית</h3>
+                        <p>מנוע AI מותאם אישית לתלמידים</p>
+                    </div>
+                    
+                    <div class="credits-card">
+                        <div class="credits-icon">📚</div>
+                        <h3>תוכן לימודי</h3>
+                        <p>מאגר ידע מקיף בעברית</p>
+                    </div>
+                    
+                    <div class="credits-card">
+                        <div class="credits-icon">🔧</div>
+                        <h3>כלים</h3>
+                        <p>HTML, CSS, JavaScript</p>
+                    </div>
+                </div>
+                
+                <div class="credits-footer">
+                    <p>גרסה 2.0 | כל הזכויות שמורות © 2025</p>
+                    <p>נבנה באהבה עבור תלמידי ישראל 🇮🇱</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>📚 תיק הלימודים החכם - כל הזכויות שמורות © 2025</p>
+            <p>נבנה באהבה עבור תלמידי ישראל</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
