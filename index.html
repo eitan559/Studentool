@@ -286,10 +286,10 @@
                     <h3 data-translate="tools.summarizer">מסכם טקסטים</h3>
                     <p data-translate="tools.summarizerDesc">קיצור טקסטים ארוכים</p>
                 </div>
-                <div class="tool-card" data-tool="quiz-generator1">
+                <div class="tool-card" data-tool="quiz-generator">
                     <div class="tool-icon">❓</div>
                     <h3 data-translate="tools.quizGenerator">יוצר שאלות</h3>
-                    <p data-translate="tools.quizGeneratorDesc">בקרוב</p>
+                    <p data-translate="tools.quizGeneratorDesc">יצירת מבחנים ושאלונים</p>
                 </div>
                 <div class="tool-card" data-tool="study-planner">
                     <div class="tool-icon">📅</div>
@@ -299,23 +299,23 @@
                 <div class="tool-card" data-tool="chat-tutor1">
                     <div class="tool-icon">🤖</div>
                     <h3 data-translate="tools.chatTutor">מורה AI חכם</h3>
-                    <p data-translate="tools.chatTutorDesc">בקרוב</p>
+                    <p data-translate="tools.chatTutorDesc">שיחה חכמה ועזרה מותאמת</p>
                 </div>
                 <!-- Added new tools -->
-                <div class="tool-card" data-tool="flashcards1">
+                <div class="tool-card" data-tool="flashcards">
                     <div class="tool-icon">🃏</div>
                     <h3 data-translate="tools.flashcards">כרטיסיות לימוד</h3>
-                    <p data-translate="tools.flashcardsDesc">בקרוב</p>
+                    <p data-translate="tools.flashcardsDesc">למידה בשיטת הזיכרון</p>
                 </div>
-                <div class="tool-card" data-tool="dictionary1">
+                <div class="tool-card" data-tool="dictionary">
                     <div class="tool-icon">📖</div>
                     <h3 data-translate="tools.dictionary">מילון</h3>
-                    <p data-translate="tools.dictionaryDesc">בקרוב</p>
+                    <p data-translate="tools.dictionaryDesc">הגדרות ומילים נרדפות</p>
                 </div>
-                <div class="tool-card" data-tool="translator1">
+                <div class="tool-card" data-tool="translator">
                     <div class="tool-icon">🌍</div>
                     <h3 data-translate="tools.translator">מתרגם</h3>
-                    <p data-translate="tools.translatorDesc">בקרוב</p>
+                    <p data-translate="tools.translatorDesc">תרגום מהיר בין שפות</p>
                 </div>
             </div>
         </section>
@@ -471,7 +471,7 @@
             </div>
 
             <!-- Quiz Generator -->
-            <div class="tab-content" id="quiz-tab1">
+            <div class="tab-content" id="quiz-tab">
                 <div class="tool-panel">
                     <h3>❓ יוצר שאלות ומבחנים</h3>
                     <div class="form-group">
@@ -503,20 +503,20 @@
             </div>
 
             <!-- Added Flashcards Tab -->
-            <div class="tab-content" id="flashcards-tab1">
+            <div class="tab-content" id="flashcards-tab">
                 <div class="tool-panel">
                     <h3>🃏 כרטיסיות לימוד</h3>
                     <div class="flashcard-container">
                         <div class="flashcard-create">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>שם הערכה</label>
+                                    <label>שם הערכה (אופציונלי)</label>
                                     <input type="text" id="flashcardDeck" placeholder="לדוגמה: מילים באנגלית">
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>צד קדמי (שאלה)</label>
+                                    <label>צד קדמי (שאלה/מילה)</label>
                                     <input type="text" id="flashcardFront" placeholder="המילה או השאלה">
                                 </div>
                                 <div class="form-group">
@@ -524,16 +524,18 @@
                                     <input type="text" id="flashcardBack" placeholder="התשובה או ההגדרה">
                                 </div>
                             </div>
-                            <button class="btn btn-primary" id="addFlashcard">הוסף כרטיסייה</button>
+                            <button class="btn btn-primary" id="addFlashcard">➕ הוסף כרטיסייה</button>
                         </div>
-                        <div class="flashcard-deck" id="flashcardDeckDisplay">
+                        
+                        <div class="flashcard-display">
+                            <p class="flashcard-hint">לחץ על הכרטיסייה כדי להפוך אותה!</p>
                             <div class="flashcard" id="currentFlashcard">
                                 <div class="flashcard-inner">
                                     <div class="flashcard-front">
-                                        <p>לחץ להוספת כרטיסייה</p>
+                                        <p>אין כרטיסיות עדיין</p>
                                     </div>
                                     <div class="flashcard-back">
-                                        <p>התשובה תופיע כאן</p>
+                                        <p>הוסף כרטיסייה חדשה למעלה</p>
                                     </div>
                                 </div>
                             </div>
@@ -542,13 +544,14 @@
                                 <span id="flashcardCounter">0 / 0</span>
                                 <button class="btn btn-secondary" id="nextFlashcard">הבא ➡️</button>
                             </div>
+                            <button class="btn btn-outline" id="flipFlashcard">🔄 הפוך כרטיסייה</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Added Dictionary Tab -->
-            <div class="tab-content" id="dictionary-tab1">
+            <div class="tab-content" id="dictionary-tab">
                 <div class="tool-panel">
                     <h3>📖 מילון עברי</h3>
                     <div class="form-group">
@@ -642,40 +645,34 @@
                 </div>
             </div>
 
-            <!-- Added Translator Tab -->
-            <div class="tab-content" id="translator-tab1">
+            <!-- Updated Translator section with language swap button -->
+            <div class="tab-content" id="translator-tab">
                 <div class="tool-panel">
-                    <h3>🌍 מתרגם</h3>
+                    <h3>🌐 מתרגם</h3>
                     <div class="translator-container">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>משפה</label>
-                                <select id="translateFrom">
-                                    <option value="he">עברית</option>
-                                    <option value="en">אנגלית</option>
-                                    <option value="ar">ערבית</option>
-                                    <option value="ru">רוסית</option>
-                                    <option value="fr">צרפתית</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-secondary swap-btn" id="swapLanguages">⇄</button>
-                            <div class="form-group">
-                                <label>לשפה</label>
-                                <select id="translateTo">
-                                    <option value="en">אנגלית</option>
-                                    <option value="he">עברית</option>
-                                    <option value="ar">ערבית</option>
-                                    <option value="ru">רוסית</option>
-                                    <option value="fr">צרפתית</option>
-                                </select>
-                            </div>
+                        <div class="language-selectors">
+                            <select id="sourceLang" class="form-control">
+                                <option value="he">עברית</option>
+                                <option value="en">English</option>
+                            </select>
+                            <button class="btn btn-secondary" id="swapLanguages" title="החלף שפות">⇄</button>
+                            <select id="targetLang" class="form-control">
+                                <option value="en">English</option>
+                                <option value="he">עברית</option>
+                            </select>
                         </div>
-                        <div class="form-group">
-                            <label>טקסט לתרגום</label>
-                            <textarea id="translateInput" rows="4" placeholder="הכנס טקסט לתרגום..."></textarea>
+                        <div class="translator-boxes">
+                            <div class="translator-box">
+                                <label>טקסט מקור:</label>
+                                <textarea id="translatorInput" rows="5" placeholder="הקלד טקסט לתרגום..."></textarea>
+                            </div>
+                            <div class="translator-box">
+                                <label>תרגום:</label>
+                                <textarea id="translatorOutput" rows="5" readonly placeholder="התרגום יופיע כאן..."></textarea>
+                            </div>
                         </div>
                         <button class="btn btn-primary" id="translateText">תרגם</button>
-                        <div class="output-area" id="translateOutput"></div>
+                        <p class="translator-note">* המתרגם מכיל מאות מילים נפוצות. מילים שלא נמצאו יישארו כמקור.</p>
                     </div>
                 </div>
             </div>
@@ -920,9 +917,10 @@
                 <div class="credits-card main-credit">
                     <div class="credits-icon">👨‍💻</div>
                     <h3>פיתוח ועיצוב</h3>
-                    <p class="credit-name">תלמיד מבית ספר דרכא בגין גדרה בשם איתן שבכיתה ז</p>
-                    <p class="credit-desc">ופיתח את הפלטפורמה המלאה, עיצב ממשק המשתמש, ופיתח כל הכלים</p>
+                    <p class="credit-name">תלמיד של בית הספר דרכא בגין שבגדרה שם הילד איתן כיתה ז</p>
+                    <p class="credit-desc">והוא פיתח את הפלטפורמה המלאה, עיצב את ממשק המשתמש, ופיתח את כל הכלים</p>
                 </div>
+                
                 <div class="credits-grid">
                     <div class="credits-card">
                         <div class="credits-icon">🎨</div>

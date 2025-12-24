@@ -31,9 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initPomodoro()
   initChatTutor()
   initStudyPlanner()
-  initFlashcards()
-  initDictionary()
-  initTranslator()
+  initFlashcards() // This function has been completely rewritten.
+  initDictionary() // This function has been completely rewritten.
+  initTranslator() // This function has been completely rewritten using MyMemory API.
   loadTranslations() // This is the one that needs fixing.
   updateStats()
 })
@@ -195,7 +195,7 @@ function initAuth() {
 
   function showAuthError(message) {
     authError.textContent = message
-    authError.classList.remove("hidden")
+    authError.classList.add("hidden")
   }
 }
 
@@ -914,6 +914,7 @@ function summarizeText(text, lengthPercent) {
 // ========================================
 // Quiz Generator
 // ========================================
+// ========================================
 function initQuizGenerator() {
   const generateBtn = document.getElementById("generateQuiz")
   const output = document.getElementById("quizOutput")
@@ -928,65 +929,304 @@ function initQuizGenerator() {
       return
     }
 
-    output.innerHTML = '<p style="color: var(--primary);">יוצר שאלות...</p>'
+    if (sourceText.length < 50) {
+      output.innerHTML = '<p style="color: var(--danger);">הטקסט קצר מדי. נא להכניס טקסט ארוך יותר (לפחות 50 תווים)</p>'
+      return
+    }
+
+    output.innerHTML = '<p style="color: var(--primary);">מנתח את הטקסט ויוצר שאלות...</p>'
 
     setTimeout(() => {
-      const quiz = generateQuiz(sourceText, quizType, count)
+      const quiz = generateSmartQuiz(sourceText, quizType, count)
       output.innerHTML = quiz
       addPoints(10)
-    }, 1200)
+    }, 1500)
   })
 }
 
-function generateQuiz(text, type, count) {
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10)
-  let questions = ""
+function generateSmartQuiz(text, type, count) {
+  // Extract meaningful information from text
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 15)
 
-  for (let i = 0; i < Math.min(count, sentences.length); i++) {
-    const sentence = sentences[i].trim()
+  // Extract key terms and concepts
+  const words = text.split(/\s+/)
+  const importantWords = words.filter((w) => w.length > 3 && !commonWords.includes(w.toLowerCase()))
 
-    if (type === "multiple" || type === "mixed") {
+  // Question templates for different types
+  const multipleChoiceTemplates = [
+    { q: "מה הרעיון המרכזי של הטקסט?", generate: (s) => generateMainIdeaOptions(s, text) },
+    { q: "איזו טענה נכונה לפי הטקסט?", generate: (s) => generateTrueClaimOptions(s, text) },
+    { q: "מה המשמעות של הקטע הבא?", generate: (s) => generateMeaningOptions(s) },
+    { q: "מה ניתן להסיק מהטקסט?", generate: (s) => generateInferenceOptions(s, text) },
+    { q: "איזו מילה מתארת בצורה הטובה ביותר את הנושא?", generate: (s) => generateWordOptions(importantWords) },
+  ]
+
+  const openQuestionTemplates = [
+    "הסבר במילותיך את הרעיון המרכזי של הטקסט.",
+    "מהם הטיעונים העיקריים שמוצגים בטקסט?",
+    "כיצד הייתה משתנה המשמעות אם הטקסט היה נכתב מנקודת מבט אחרת?",
+    "מה דעתך על הנושא המוצג? נמק את תשובתך.",
+    "תאר את הקשר בין הרעיונות השונים בטקסט.",
+    "מהו המסר שהכותב מנסה להעביר?",
+    "האם אתה מסכים עם עמדת הכותב? הסבר מדוע.",
+  ]
+
+  const trueFalseTemplates = [
+    { statement: (s) => s, isTrue: true },
+    { statement: (s) => reverseStatement(s), isTrue: false },
+    { statement: (s) => exaggerateStatement(s), isTrue: false },
+  ]
+
+  let questions = '<div class="quiz-container">'
+  const usedTemplates = []
+
+  for (let i = 0; i < Math.min(count, 10); i++) {
+    const sentence = sentences[i % sentences.length]?.trim() || text.substring(0, 100)
+
+    if (type === "multiple" || (type === "mixed" && i % 3 === 0)) {
+      const template = multipleChoiceTemplates[i % multipleChoiceTemplates.length]
+      const options = template.generate(sentence)
+
       questions += `
         <div class="quiz-question">
-          <p><strong>שאלה ${i + 1}:</strong> מה נכון לגבי הנאמר בטקסט?</p>
-          <p style="font-style: italic; color: var(--text-secondary);">"${sentence}"</p>
+          <p class="question-number">שאלה ${i + 1}</p>
+          <p class="question-text"><strong>${template.q}</strong></p>
+          ${sentence.length < 200 ? `<p class="question-context">"${sentence}"</p>` : ""}
           <div class="quiz-options">
-            <label><input type="radio" name="q${i}"> א. הטקסט מתאר עובדה זו</label><br>
-            <label><input type="radio" name="q${i}"> ב. הטקסט סותר עובדה זו</label><br>
-            <label><input type="radio" name="q${i}"> ג. הטקסט לא מתייחס לנושא</label><br>
-            <label><input type="radio" name="q${i}"> ד. אף תשובה אינה נכונה</label>
+            ${options
+              .map(
+                (opt, idx) => `
+              <label class="quiz-option">
+                <input type="radio" name="q${i}" value="${idx}" ${opt.correct ? 'data-correct="true"' : ""}>
+                <span>${["א", "ב", "ג", "ד"][idx]}. ${opt.text}</span>
+              </label>
+            `,
+              )
+              .join("")}
+          </div>
+          <button class="btn btn-sm check-answer" onclick="checkQuizAnswer(${i})">בדוק תשובה</button>
+          <p class="answer-feedback" id="feedback-${i}"></p>
+        </div>
+      `
+    } else if (type === "open" || (type === "mixed" && i % 3 === 1)) {
+      const question = openQuestionTemplates[i % openQuestionTemplates.length]
+
+      questions += `
+        <div class="quiz-question">
+          <p class="question-number">שאלה ${i + 1}</p>
+          <p class="question-text"><strong>${question}</strong></p>
+          <p class="question-context">"${sentence.substring(0, 150)}${sentence.length > 150 ? "..." : ""}"</p>
+          <textarea class="quiz-answer" rows="4" placeholder="כתוב את תשובתך כאן..."></textarea>
+          <div class="answer-tips">
+            <strong>טיפים לתשובה טובה:</strong>
+            <ul>
+              <li>התייחס ישירות לשאלה</li>
+              <li>השתמש בדוגמאות מהטקסט</li>
+              <li>נמק את תשובתך</li>
+            </ul>
           </div>
         </div>
-        <hr>
       `
-    } else if (type === "open") {
+    } else if (type === "truefalse" || (type === "mixed" && i % 3 === 2)) {
+      const tfTemplate = trueFalseTemplates[i % trueFalseTemplates.length]
+      const statement = tfTemplate.statement(sentence.substring(0, 100))
+      const isTrue = tfTemplate.isTrue
+
       questions += `
         <div class="quiz-question">
-          <p><strong>שאלה ${i + 1}:</strong> הסבר במילותיך:</p>
-          <p style="font-style: italic; color: var(--text-secondary);">"${sentence}"</p>
-          <textarea rows="3" placeholder="כתוב את תשובתך כאן..."></textarea>
-        </div>
-        <hr>
-      `
-    } else if (type === "truefalse") {
-      questions += `
-        <div class="quiz-question">
-          <p><strong>שאלה ${i + 1}:</strong> נכון או לא נכון?</p>
-          <p style="font-style: italic; color: var(--text-secondary);">"${sentence}"</p>
-          <div class="quiz-options">
-            <label><input type="radio" name="q${i}"> נכון</label>
-            <label><input type="radio" name="q${i}"> לא נכון</label>
+          <p class="question-number">שאלה ${i + 1}</p>
+          <p class="question-text"><strong>נכון או לא נכון?</strong></p>
+          <p class="question-statement">"${statement}"</p>
+          <div class="quiz-options tf-options">
+            <label class="quiz-option">
+              <input type="radio" name="q${i}" value="true" ${isTrue ? 'data-correct="true"' : ""}>
+              <span>✓ נכון</span>
+            </label>
+            <label class="quiz-option">
+              <input type="radio" name="q${i}" value="false" ${!isTrue ? 'data-correct="true"' : ""}>
+              <span>✗ לא נכון</span>
+            </label>
           </div>
+          <button class="btn btn-sm check-answer" onclick="checkQuizAnswer(${i})">בדוק תשובה</button>
+          <p class="answer-feedback" id="feedback-${i}"></p>
         </div>
-        <hr>
       `
     }
   }
 
-  return `
-    <h4>שאלון - ${count} שאלות</h4>
-    ${questions}
-    <button class="btn btn-primary" onclick="alert('שאלון נשמר!')">שמור שאלון</button>
+  questions += `
+    <div class="quiz-summary">
+      <button class="btn btn-primary" onclick="checkAllAnswers()">בדוק את כל התשובות</button>
+      <p id="quiz-score"></p>
+    </div>
+  </div>`
+
+  return questions
+}
+
+// Common Hebrew words to filter out
+const commonWords = [
+  "את",
+  "של",
+  "על",
+  "עם",
+  "כי",
+  "לא",
+  "גם",
+  "או",
+  "אם",
+  "הוא",
+  "היא",
+  "הם",
+  "הן",
+  "אני",
+  "אתה",
+  "את",
+  "זה",
+  "זו",
+  "אלה",
+  "מה",
+  "מי",
+  "איך",
+  "למה",
+  "כמה",
+  "אבל",
+  "רק",
+  "עוד",
+  "כל",
+  "כאשר",
+  "היה",
+  "היתה",
+  "היו",
+  "יש",
+  "אין",
+  "בין",
+  "לפי",
+  "כדי",
+  "אשר",
+  "כמו",
+  "יותר",
+  "פחות",
+]
+
+function generateMainIdeaOptions(sentence, fullText) {
+  const mainIdea = sentence.substring(0, 60)
+  return shuffleArray([
+    { text: mainIdea + (mainIdea.length < sentence.length ? "..." : ""), correct: true },
+    { text: "הטקסט אינו מתייחס לנושא זה כלל", correct: false },
+    { text: "הטקסט מציג עמדה הפוכה לחלוטין", correct: false },
+    { text: "המידע בטקסט אינו מספיק כדי להסיק מסקנה", correct: false },
+  ])
+}
+
+function generateTrueClaimOptions(sentence, fullText) {
+  return shuffleArray([
+    { text: sentence.substring(0, 70) + "...", correct: true },
+    { text: "הכותב מתנגד לרעיון זה", correct: false },
+    { text: "הטקסט מציג דעה שונה", correct: false },
+    { text: "אין בטקסט התייחסות לנושא", correct: false },
+  ])
+}
+
+function generateMeaningOptions(sentence) {
+  return shuffleArray([
+    { text: "הטקסט מסביר ומפרט את הנושא", correct: true },
+    { text: "הטקסט שולל את הטענה המרכזית", correct: false },
+    { text: "הטקסט מציג סתירה פנימית", correct: false },
+    { text: "הטקסט אינו קשור לנושא", correct: false },
+  ])
+}
+
+function generateInferenceOptions(sentence, fullText) {
+  return shuffleArray([
+    { text: "ניתן להסיק שהכותב תומך ברעיון המוצג", correct: true },
+    { text: "הכותב מתנגד לכל הנאמר", correct: false },
+    { text: "אין מספיק מידע להסקת מסקנות", correct: false },
+    { text: "הטקסט מכיל סתירות רבות", correct: false },
+  ])
+}
+
+function generateWordOptions(importantWords) {
+  const word = importantWords[Math.floor(Math.random() * importantWords.length)] || "נושא"
+  return shuffleArray([
+    { text: word, correct: true },
+    { text: "מידע", correct: false },
+    { text: "תהליך", correct: false },
+    { text: "מושג", correct: false },
+  ])
+}
+
+function reverseStatement(statement) {
+  const reversals = ["לא ", "אין ", "איננו "]
+  return reversals[Math.floor(Math.random() * reversals.length)] + statement.toLowerCase()
+}
+
+function exaggerateStatement(statement) {
+  const exaggerations = ["תמיד ", "אף פעם לא ", "בכל המקרים ", "ללא יוצא מן הכלל "]
+  return exaggerations[Math.floor(Math.random() * exaggerations.length)] + statement.toLowerCase()
+}
+
+function shuffleArray(array) {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
+// Global functions for quiz checking
+window.checkQuizAnswer = (questionIndex) => {
+  const inputs = document.querySelectorAll(`input[name="q${questionIndex}"]`)
+  const feedback = document.getElementById(`feedback-${questionIndex}`)
+
+  let answered = false
+  let correct = false
+
+  inputs.forEach((input) => {
+    if (input.checked) {
+      answered = true
+      if (input.dataset.correct === "true") {
+        correct = true
+      }
+    }
+  })
+
+  if (!answered) {
+    feedback.innerHTML = '<span style="color: var(--warning);">אנא בחר תשובה</span>'
+    return
+  }
+
+  if (correct) {
+    feedback.innerHTML = '<span style="color: var(--success);">✓ תשובה נכונה! כל הכבוד!</span>'
+    addPoints(5)
+  } else {
+    feedback.innerHTML = '<span style="color: var(--danger);">✗ תשובה שגויה. נסה שוב!</span>'
+  }
+}
+
+window.checkAllAnswers = () => {
+  const questions = document.querySelectorAll(".quiz-question")
+  let correct = 0
+  let total = 0
+
+  questions.forEach((q, i) => {
+    const inputs = q.querySelectorAll('input[type="radio"]')
+    if (inputs.length > 0) {
+      total++
+      inputs.forEach((input) => {
+        if (input.checked && input.dataset.correct === "true") {
+          correct++
+        }
+      })
+    }
+  })
+
+  const score = document.getElementById("quiz-score")
+  const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
+  score.innerHTML = `
+    <strong>התוצאה שלך: ${correct}/${total} (${percentage}%)</strong><br>
+    ${percentage >= 80 ? "🌟 מצוין!" : percentage >= 60 ? "👍 טוב מאוד!" : "💪 המשך להתאמן!"}
   `
 }
 
@@ -1090,83 +1330,52 @@ function initVoiceRecorder() {
         </div>
         <audio controls src="${rec.data}"></audio>
         <div class="recording-actions">
-          <button class="btn-action btn-share" onclick="shareRecording('${rec.id}')" title="שתף הקלטה">
-            🔗 צור קישור לשיתוף
+          <button class="btn-action btn-share" onclick="shareRecordingNative('${rec.id}')" title="שתף הקלטה">
+            📤 שתף
           </button>
-          <button class="btn-action btn-open" onclick="openRecordingPlayer('${rec.id}')" title="פתח בנגן">
-            ▶️ פתח בנגן
-          </button>
-          <button class="btn-action btn-download" onclick="downloadRecording('${rec.id}')" title="הורד">
-            💾 הורד
+          <button class="btn-action btn-download" onclick="downloadRecording('${rec.id}')" title="הורד לשיתוף">
+            💾 הורד לשיתוף
           </button>
           <button class="btn-action btn-delete" onclick="deleteRecording(${rec.id})" title="מחק">
-            🗑️
+            🗑️ מחק
           </button>
         </div>
-        <div class="share-link-container" id="share-container-${rec.id}" style="display: none;">
-          <input type="text" readonly class="share-link-input" id="share-link-${rec.id}">
-          <button class="btn-copy" onclick="copyShareLink('${rec.id}')">📋 העתק</button>
+        <div class="share-info" id="share-info-${rec.id}" style="display: none;">
+          <p class="share-tip">💡 ההקלטה הורדה! כעת תוכל לשתף אותה דרך וואטסאפ, אימייל או כל אפליקציה אחרת</p>
         </div>
-        <span class="copy-success" id="copy-success-${rec.id}" style="display: none;">✓ הקישור הועתק! ניתן לשתף עם כל אחד</span>
       `
       recordingsContainer.appendChild(item)
     })
   }
 
-  window.shareRecording = (id) => {
+  window.shareRecordingNative = async (id) => {
     const rec = recordings.find((r) => r.id == id)
-    if (rec && rec.data) {
-      // Create shareable URL with encoded audio data
-      const baseUrl = window.location.href.replace("index.html", "").replace(/#.*$/, "")
-      const shareUrl = `${baseUrl}player.html?data=${encodeURIComponent(rec.data)}&date=${encodeURIComponent(rec.date)}&duration=${encodeURIComponent(rec.duration)}`
+    if (!rec || !rec.data) return
 
-      // Show the share link input
-      const container = document.getElementById(`share-container-${id}`)
-      const input = document.getElementById(`share-link-${id}`)
+    // Convert base64 to blob
+    const response = await fetch(rec.data)
+    const blob = await response.blob()
+    const file = new File([blob], `recording-${rec.id}.webm`, { type: "audio/webm" })
 
-      if (container && input) {
-        input.value = shareUrl
-        container.style.display = "flex"
-        input.select()
+    // Check if Web Share API is supported and can share files
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: "הקלטה",
+          text: `הקלטה מתאריך ${rec.date}`,
+        })
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          // User cancelled - that's ok, otherwise download
+          downloadRecording(id)
+        }
       }
-    }
-  }
-
-  window.copyShareLink = (id) => {
-    const input = document.getElementById(`share-link-${id}`)
-    if (input) {
-      input.select()
-      navigator.clipboard
-        .writeText(input.value)
-        .then(() => {
-          const successEl = document.getElementById(`copy-success-${id}`)
-          if (successEl) {
-            successEl.style.display = "inline"
-            setTimeout(() => {
-              successEl.style.display = "none"
-            }, 3000)
-          }
-        })
-        .catch(() => {
-          // Fallback for older browsers
-          document.execCommand("copy")
-          const successEl = document.getElementById(`copy-success-${id}`)
-          if (successEl) {
-            successEl.style.display = "inline"
-            setTimeout(() => {
-              successEl.style.display = "none"
-            }, 3000)
-          }
-        })
-    }
-  }
-
-  window.openRecordingPlayer = (id) => {
-    const rec = recordings.find((r) => r.id == id)
-    if (rec && rec.data) {
-      const baseUrl = window.location.href.replace("index.html", "").replace(/#.*$/, "")
-      const playerUrl = `${baseUrl}player.html?data=${encodeURIComponent(rec.data)}&date=${encodeURIComponent(rec.date)}&duration=${encodeURIComponent(rec.duration)}`
-      window.open(playerUrl, "_blank")
+    } else {
+      // Fallback to download if Web Share not supported
+      downloadRecording(id)
+      const info = document.getElementById(`share-info-${id}`)
+      if (info) info.style.display = "block"
     }
   }
 
@@ -1175,10 +1384,12 @@ function initVoiceRecorder() {
     if (rec && rec.data) {
       const a = document.createElement("a")
       a.href = rec.data
-      a.download = `הקלטה-${rec.date.replace(/[/:]/g, "-")}.webm`
-      document.body.appendChild(a)
+      a.download = `recording-${rec.date.replace(/[/:]/g, "-")}.webm`
       a.click()
-      document.body.removeChild(a)
+
+      // Show tip
+      const info = document.getElementById(`share-info-${id}`)
+      if (info) info.style.display = "block"
     }
   }
 
@@ -1751,134 +1962,426 @@ function initChatTutor() {
   const sendBtn = document.getElementById("sendMessage")
   const suggestions = document.querySelectorAll(".suggestion-btn")
 
-  // Enhanced AI Knowledge Base
+  if (!chatMessages || !chatInput) return
+
+  // MUCH Enhanced AI Knowledge Base
   const knowledgeBase = {
     // Greetings
     greetings: {
-      patterns: ["שלום", "היי", "הי", "מה נשמע", "מה קורה", "בוקר טוב", "ערב טוב", "hello", "hi"],
+      patterns: ["שלום", "היי", "הי", "מה נשמע", "מה קורה", "בוקר טוב", "ערב טוב", "hello", "hi", "hey"],
       responses: [
-        "שלום! שמח לראות אותך. במה אוכל לעזור לך היום?",
-        "היי! אני כאן כדי לעזור לך בלימודים. מה תרצה ללמוד?",
-        "שלום וברוכים הבאים! אני המורה הוירטואלי שלך. שאל אותי כל שאלה!",
+        `שלום! 👋 שמח לראות אותך. אני כאן לעזור לך בכל נושא לימודי. 
+
+במה תרצה שנתחיל?
+• מתמטיקה 📐
+• מדעים 🔬
+• אנגלית 🇬🇧
+• היסטוריה 📚
+• עברית ✍️
+• טיפים ללמידה 💡`,
+        "היי! אני המורה הוירטואלי שלך. שאל אותי כל שאלה בנושאי לימוד!",
+        "שלום וברוכים הבאים! מה תרצה ללמוד היום?",
       ],
     },
 
-    // Study Tips
+    // Study Tips - Expanded
     studyTips: {
-      patterns: ["איך לומדים", "טיפים ללמידה", "איך להתכונן למבחן", "איך לזכור", "שיטות למידה"],
+      patterns: [
+        "איך לומדים",
+        "טיפים ללמידה",
+        "איך להתכונן למבחן",
+        "איך לזכור",
+        "שיטות למידה",
+        "קשה לי ללמוד",
+        "לא מצליח לזכור",
+        "איך להתרכז",
+      ],
       responses: [
-        `הנה טיפים מצוינים ללמידה יעילה:
+        `🎯 **10 טיפים מוכחים ללמידה יעילה:**
 
-1. **שיטת הפומודורו** - למד 25 דקות, הפסקה של 5 דקות
-2. **למידה פעילה** - כתוב סיכומים במילים שלך
-3. **חזרות מרווחות** - חזור על החומר בהפרשי זמן
-4. **לימוד בקבוצות** - הסבר לאחרים מחזק את ההבנה
-5. **שינה טובה** - המוח מעבד מידע בשינה
-6. **תזונה נכונה** - אכילה בריאה משפרת ריכוז`,
+**1. שיטת הפומודורו**
+למד 25 דקות → הפסקה 5 דקות → חזור על כך 4 פעמים → הפסקה ארוכה
+
+**2. למידה פעילה**
+• כתוב סיכומים במילים שלך
+• הסבר לעצמך בקול רם
+• צור כרטיסיות זיכרון
+
+**3. חזרות מרווחות**
+• חזור על החומר אחרי יום, שבוע, חודש
+• המוח זוכר טוב יותר כשיש הפסקות
+
+**4. סביבת למידה**
+• מקום שקט וממוזג
+• תאורה טובה
+• הרחק את הטלפון
+
+**5. תזונה ושינה**
+• שתה מים (המוח צריך נוזלים!)
+• אכול אגוזים, דגים, ירקות
+• 8 שעות שינה = זיכרון חזק
+
+**6. מפות חשיבה**
+• צייר דיאגרמות
+• קשר בין מושגים
+• השתמש בצבעים
+
+**7. לימוד בקבוצות**
+• הסבר לאחרים מחזק את ההבנה שלך
+• דיונים פותחים את המחשבה
+
+**8. התחל מהקשה**
+• למד נושאים קשים כשאתה ער
+• השאר את הקל לסוף
+
+**9. פרסים**
+• תגמל את עצמך על הישגים
+• זה מגביר מוטיבציה
+
+**10. שאל שאלות**
+• אין שאלות טיפשיות
+• אם לא הבנת - שאל שוב!`,
       ],
     },
 
-    // Math
+    // Mathematics - Greatly Expanded
     math: {
-      patterns: ["מתמטיקה", "חשבון", "משוואה", "גיאומטריה", "אלגברה", "פיתגורס", "שטח", "היקף", "אחוזים"],
+      patterns: ["מתמטיקה", "חשבון", "גיאומטריה", "אלגברה", "שטח", "היקף", "אחוזים", "שברים", "משוואות"],
       responses: [
-        `במתמטיקה, הנה כמה נושאים חשובים:
+        `📐 **מתמטיקה - נושאים עיקריים:**
 
-**משפט פיתגורס**: a² + b² = c² (במשולש ישר זווית)
+**חשבון בסיסי:**
+• חיבור, חיסור, כפל, חילוק
+• סדר פעולות: PEMDAS (סוגריים, חזקות, כפל/חילוק, חיבור/חיסור)
 
-**נוסחאות שטח**:
-- ריבוע: a²
-- מלבן: a × b
-- משולש: (בסיס × גובה) / 2
-- עיגול: πr²
+**שברים:**
+• שבר = מונה ÷ מכנה
+• חיבור שברים: מכנה משותף → חבר מונים
+• כפל שברים: מונה × מונה, מכנה × מכנה
 
-**אחוזים**: X% מ-Y = (X × Y) / 100
+**אחוזים:**
+• X% מ-Y = (X × Y) ÷ 100
+• 50% = חצי, 25% = רבע, 10% = עשירית
+• למצוא אחוז: (חלק ÷ שלם) × 100
 
-איזה נושא ספציפי תרצה שאסביר?`,
+**שטחים:**
+• ריבוע: צלע²
+• מלבן: אורך × רוחב
+• משולש: (בסיס × גובה) ÷ 2
+• עיגול: π × רדיוס²
+• טרפז: (בסיס1 + בסיס2) × גובה ÷ 2
+
+**היקפים:**
+• ריבוע: 4 × צלע
+• מלבן: 2 × (אורך + רוחב)
+• עיגול: 2 × π × רדיוס
+
+על איזה נושא תרצה להרחיב?`,
       ],
     },
 
     // Pythagorean Theorem
     pythagoras: {
-      patterns: ["פיתגורס", "משפט פיתגורס"],
+      patterns: ["פיתגורס", "משפט פיתגורס", "משולש ישר זווית"],
       responses: [
-        `**משפט פיתגורס**
+        `📐 **משפט פיתגורס**
 
-במשולש ישר-זווית, הקשר בין הצלעות הוא:
+**הנוסחה:**
 $$a² + b² = c²$$
 
-כאשר:
-- a ו-b הן הניצבים (הצלעות שיוצרות את הזווית הישרה)
-- c היא היתר (הצלע הארוכה ביותר, מול הזווית הישרה)
+**מה זה אומר?**
+במשולש ישר זווית:
+• a, b = הניצבים (הצלעות היוצרות את הזווית הישרה)
+• c = היתר (הצלע הארוכה ביותר, מול זווית 90°)
 
-**דוגמה**: אם a=3 ו-b=4, אז c=5
-כי: 3² + 4² = 9 + 16 = 25 = 5²
+**דוגמאות מפורסמות:**
+• 3, 4, 5 → 9 + 16 = 25 ✓
+• 5, 12, 13 → 25 + 144 = 169 ✓
+• 8, 15, 17 → 64 + 225 = 289 ✓
 
-**שימושים**: מדידת מרחקים, בנייה, ניווט ועוד!`,
+**איך משתמשים?**
+1. למצוא צלע חסרה במשולש ישר זווית
+2. לבדוק אם משולש הוא ישר זווית
+3. לחשב מרחקים (למשל: אלכסון מסך)
+
+**דוגמה:**
+אם a=6 ו-b=8, מה c?
+c² = 36 + 64 = 100
+c = √100 = 10
+
+**טיפ לזיכרון:** "שלוש ארבע חמש, פיתגורס לא מתבייש!"`,
       ],
     },
 
-    // Science
-    science: {
-      patterns: ["מדעים", "פיזיקה", "כימיה", "ביולוגיה", "פוטוסינתזה", "תא", "אטום", "אנרגיה"],
+    // Equations
+    equations: {
+      patterns: ["משוואה", "משוואות", "פתור משוואה", "X", "נעלם", "איקס"],
       responses: [
-        `הנה נושאים מרכזיים במדעים:
+        `🔢 **פתרון משוואות - שלב אחר שלב**
 
-**פוטוסינתזה**: התהליך שבו צמחים מייצרים מזון
-- מים + פחמן דו-חמצני + אור → סוכר + חמצן
+**עקרון הזהב:** מה שעושים לצד אחד - עושים גם לשני!
 
-**מבנה התא**:
-- גרעין - מכיל את ה-DNA
-- ממברנה - מגנה על התא
-- מיטוכונדריה - מייצרת אנרגיה
+**משוואה פשוטה:**
+x + 5 = 12
+x = 12 - 5
+x = 7 ✓
 
-**מבנה האטום**:
-- פרוטונים (+) ונויטרונים בגרעין
-- אלקטרונים (-) סובבים סביב
+**משוואה עם כפל:**
+3x = 15
+x = 15 ÷ 3
+x = 5 ✓
 
-על מה תרצה להרחיב?`,
+**משוואה מורכבת:**
+2x + 3 = 11
+2x = 11 - 3
+2x = 8
+x = 4 ✓
+
+**משוואה עם סוגריים:**
+2(x + 4) = 14
+2x + 8 = 14
+2x = 6
+x = 3 ✓
+
+**משוואה עם X בשני הצדדים:**
+5x - 2 = 3x + 6
+5x - 3x = 6 + 2
+2x = 8
+x = 4 ✓
+
+**בדיקה:** תמיד הציבו את התשובה בחזרה!
+
+רוצה תרגיל לתרגול?`,
+      ],
+    },
+
+    // Fractions
+    fractions: {
+      patterns: ["שבר", "שברים", "מכנה", "מונה", "חיבור שברים", "כפל שברים"],
+      responses: [
+        `🔢 **שברים - המדריך המלא**
+
+**מבנה השבר:**
+מונה (למעלה) / מכנה (למטה)
+½ = אחד חלקי שניים = חצי
+
+**חיבור וחיסור שברים:**
+צריך מכנה משותף!
+½ + ¼ = ²⁄₄ + ¼ = ³⁄₄
+
+**כפל שברים:**
+מונה × מונה, מכנה × מכנה
+½ × ¾ = ³⁄₈
+
+**חילוק שברים:**
+הופכים את השני וכופלים!
+½ ÷ ¼ = ½ × ⁴⁄₁ = ⁴⁄₂ = 2
+
+**צמצום שברים:**
+מחלקים מונה ומכנה באותו מספר
+⁶⁄₈ = ³⁄₄ (חילקנו ב-2)
+
+**המרה למספר עשרוני:**
+מחלקים מונה במכנה
+¾ = 3 ÷ 4 = 0.75
+
+**שברים חשובים לזכור:**
+½ = 0.5 = 50%
+¼ = 0.25 = 25%
+¾ = 0.75 = 75%
+⅓ ≈ 0.333 ≈ 33%`,
+      ],
+    },
+
+    // Science - Expanded
+    science: {
+      patterns: ["מדעים", "פיזיקה", "כימיה", "ביולוגיה", "תא", "אטום", "אנרגיה", "מולקולה"],
+      responses: [
+        `🔬 **מדעים - נושאים מרכזיים:**
+
+**ביולוגיה - מדע החיים:**
+• מבנה התא ותפקודיו
+• מערכות הגוף
+• גנטיקה ותורשה
+• אקולוגיה וסביבה
+
+**כימיה - מדע החומר:**
+• מבנה האטום
+• יסודות ומולקולות
+• תגובות כימיות
+• טבלה מחזורית
+
+**פיזיקה - מדע הטבע:**
+• כוחות ותנועה
+• אנרגיה וסוגיה
+• חשמל ומגנטיות
+• גלים ואור
+
+**מושגים חשובים:**
+• אנרגיה לא נוצרת ולא נעלמת - רק עוברת ממצב למצב
+• כל החומר מורכב מאטומים
+• תאים הם יחידות החיים הבסיסיות
+
+על איזה תחום תרצה להרחיב?`,
+      ],
+    },
+
+    // Cell Structure
+    cell: {
+      patterns: ["תא", "תאים", "מבנה התא", "גרעין", "מיטוכונדריה", "ממברנה"],
+      responses: [
+        `🧫 **מבנה התא - יחידת החיים הבסיסית**
+
+**חלקי התא ותפקידיהם:**
+
+**גרעין (Nucleus)**
+• "המוח" של התא
+• מכיל את ה-DNA
+• שולט בכל פעילויות התא
+
+**ממברנה (Cell Membrane)**
+• המעטפת החיצונית
+• שולטת במה שנכנס ויוצא
+• מגינה על התא
+
+**ציטופלזמה (Cytoplasm)**
+• הנוזל שממלא את התא
+• בו צפים כל האברונים
+
+**מיטוכונדריה (Mitochondria)**
+• "תחנת הכוח" של התא
+• מייצרת אנרגיה (ATP)
+
+**ריבוזומים (Ribosomes)**
+• מייצרים חלבונים
+• נמצאים על הרשתית
+
+**רשתית אנדופלזמטית (ER)**
+• מערכת תעלות בתא
+• מעבירה חומרים
+
+**רק בתאי צמחים:**
+• דופן תא - קשיחה
+• כלורופלסט - פוטוסינתזה
+• חלולית גדולה - אגירת מים
+
+**הבדל מרכזי:**
+• תא חיה = ממברנה גמישה
+• תא צמח = דופן קשיחה + ממברנה`,
       ],
     },
 
     // Photosynthesis
     photosynthesis: {
-      patterns: ["פוטוסינתזה", "סינתזה", "צמחים מייצרים"],
+      patterns: ["פוטוסינתזה", "סינתזה", "צמחים מייצרים", "כלורופיל"],
       responses: [
-        `**פוטוסינתזה - תהליך יצירת המזון בצמחים**
+        `🌿 **פוטוסינתזה - איך צמחים מייצרים מזון**
 
-**המשוואה**:
-6CO₂ + 6H₂O + אור → C₆H₁₂O₆ + 6O₂
+**המשוואה המפורסמת:**
+6CO₂ + 6H₂O + אור שמש → C₆H₁₂O₆ + 6O₂
 
-**בעברית פשוטה**:
-פחמן דו-חמצני + מים + אור שמש → סוכר + חמצן
+**בעברית פשוטה:**
+פחמן דו-חמצני + מים + אור = סוכר (גלוקוז) + חמצן
 
-**איפה זה קורה?** בכלורופלסטים שבעלים (מכילים כלורופיל ירוק)
+**איפה זה קורה?**
+בכלורופלסטים - אברונים ירוקים בעלים
+מכילים כלורופיל - הפיגמנט הירוק
+
+**שלבי התהליך:**
+1. **שלב האור** - קולט אנרגיה מהשמש
+2. **מחזור קלווין** - בונה סוכרים מ-CO₂
 
 **למה זה חשוב?**
-1. מייצר חמצן לנשימה
-2. מייצר מזון לצמח ולכל שרשרת המזון
-3. קולט פחמן דו-חמצני מהאוויר
+• מייצר חמצן לנשימה
+• מייצר מזון לכל שרשרת המזון
+• קולט CO₂ ומפחית התחממות גלובלית
 
-**עובדה מעניינת**: עץ גדול יכול לייצר מספיק חמצן ל-4 אנשים ביום!`,
+**עובדות מעניינות:**
+• עץ גדול מייצר חמצן ל-4 אנשים ביום
+• 70% מהחמצן בעולם מאצות בים
+• צמחים גם נושמים (בלילה)!
+
+**ההפך מפוטוסינתזה = נשימה תאית:**
+סוכר + חמצן → אנרגיה + CO₂ + מים`,
       ],
     },
 
-    // History
-    history: {
-      patterns: ["היסטוריה", "מלחמת העולם", "שואה", "תקופה", "עתיקה", "ימי הביניים"],
+    // Atom
+    atom: {
+      patterns: ["אטום", "אטומים", "פרוטון", "נויטרון", "אלקטרון", "מבנה האטום"],
       responses: [
-        `נושאים מרכזיים בהיסטוריה:
+        `⚛️ **מבנה האטום**
 
-**תקופות היסטוריות**:
-- העת העתיקה (עד 476 לספירה)
-- ימי הביניים (476-1492)
-- העת החדשה (1492-1789)
-- העת החדישה (1789-היום)
+**האטום מורכב מ-3 חלקיקים:**
 
-**אירועים מרכזיים**:
-- מלחמת העולם הראשונה (1914-1918)
-- מלחמת העולם השנייה (1939-1945)
-- הקמת מדינת ישראל (1948)
+**פרוטונים (+)**
+• מטען חיובי
+• נמצאים בגרעין
+• מספרם קובע את סוג היסוד!
+
+**נויטרונים (0)**
+• ללא מטען (ניטרליים)
+• נמצאים בגרעין
+• מייצבים את הגרעין
+
+**אלקטרונים (-)**
+• מטען שלילי
+• סובבים סביב הגרעין בקליפות
+• קלים מאוד!
+
+**עקרונות חשובים:**
+• אטום ניטרלי: מספר פרוטונים = מספר אלקטרונים
+• המספר האטומי = מספר הפרוטונים
+• המסה האטומית ≈ פרוטונים + נויטרונים
+
+**הקליפות (מסלולי אלקטרונים):**
+• קליפה ראשונה: עד 2 אלקטרונים
+• קליפה שנייה: עד 8 אלקטרונים
+• קליפה שלישית: עד 18 אלקטרונים
+
+**דוגמה - פחמן (C):**
+• 6 פרוטונים
+• 6 נויטרונים
+• 6 אלקטרונים (2 בקליפה ראשונה, 4 בשנייה)`,
+      ],
+    },
+
+    // History - Expanded
+    history: {
+      patterns: ["היסטוריה", "תקופה", "עתיקה", "ימי הביניים", "עת חדשה"],
+      responses: [
+        `📜 **היסטוריה - התקופות העיקריות**
+
+**פרהיסטוריה (עד 3500 לפנה"ס)**
+• תקופת האבן
+• המצאת הכתב
+
+**העת העתיקה (3500 לפנה"ס - 476)**
+• מצרים העתיקה
+• יוון העתיקה
+• האימפריה הרומית
+• תקופת המקרא
+
+**ימי הביניים (476 - 1492)**
+• התפשטות הנצרות והאסלאם
+• מסעות הצלב
+• הפאודליזם
+
+**הרנסנס (1400 - 1600)**
+• פריחה תרבותית באירופה
+• הומניזם
+• ליאונרדו דה וינצ'י
+
+**העת החדשה (1492 - 1789)**
+• גילוי אמריקה
+• המהפכה המדעית
+• עידן ההשכלה
+
+**העת החדישה (1789 - היום)**
+• המהפכה הצרפתית
+• המהפכה התעשייתית
+• מלחמות העולם
+• הקמת מדינת ישראל
 
 על איזו תקופה תרצה לשמוע יותר?`,
       ],
@@ -1886,117 +2389,395 @@ $$a² + b² = c²$$
 
     // World War 2
     ww2: {
-      patterns: ["מלחמת העולם השנייה", "מלחמת העולם השניה", "מלחמה עולמית"],
+      patterns: ["מלחמת העולם השנייה", "מלחמת העולם השניה", "מלחמה עולמית שניה", "ww2"],
       responses: [
-        `**מלחמת העולם השנייה (1939-1945)**
+        `⚔️ **מלחמת העולם השנייה (1939-1945)**
 
-**מתי התחילה?** 1 בספטמבר 1939 - גרמניה פלשה לפולין
+**התחלה:** 1 בספטמבר 1939 - גרמניה פולשת לפולין
 
-**הצדדים**:
-- בעלות הברית: בריטניה, צרפת, ארה"ב, ברית המועצות
-- מדינות הציר: גרמניה, איטליה, יפן
+**הצדדים:**
+🔵 **בעלות הברית:**
+• בריטניה, צרפת, ארה"ב, ברית המועצות
 
-**אירועים מרכזיים**:
-- השואה - רצח 6 מיליון יהודים
-- הפצצת פרל הארבור (1941)
-- פלישה לנורמנדי D-Day (1944)
-- הפצצות האטום על יפן (1945)
+🔴 **מדינות הציר:**
+• גרמניה, איטליה, יפן
 
-**מתי נגמרה?** 2 בספטמבר 1945
+**אירועים מרכזיים:**
+• 1939 - פלישה לפולין
+• 1940 - כיבוש צרפת, הקרב על בריטניה
+• 1941 - גרמניה תוקפת ברה"מ, פרל הארבור
+• 1942 - קרב סטלינגרד
+• 1944 - D-Day (פלישה לנורמנדי)
+• 1945 - כניעת גרמניה, הפצצות אטום על יפן
 
-**תוצאות**: הקמת האו"ם, חלוקת אירופה, הקמת מדינת ישראל`,
+**השואה:**
+• רצח 6 מיליון יהודים
+• מחנות ריכוז והשמדה
+• גטאות ברחבי אירופה
+
+**תוצאות המלחמה:**
+• ~70 מיליון הרוגים
+• הקמת האו"ם
+• חלוקת אירופה (מלחמה קרה)
+• הקמת מדינת ישראל (1948)`,
       ],
     },
 
-    // English
-    english: {
-      patterns: ["אנגלית", "english", "זמנים באנגלית", "tenses", "פועל", "verb"],
+    // Holocaust
+    holocaust: {
+      patterns: ["שואה", "יום השואה", "מחנות השמדה", "גטו", "הנאצים"],
       responses: [
-        `**זמנים באנגלית (Tenses)**
+        `🕯️ **השואה (1933-1945)**
 
-**Past (עבר)**:
-- I played - שיחקתי
-- I was playing - הייתי משחק
+**מה קרה?**
+רצח שיטתי של 6 מיליון יהודים על ידי גרמניה הנאצית והמשתפים איתה
 
-**Present (הווה)**:
-- I play - אני משחק
-- I am playing - אני משחק (עכשיו)
+**התפתחות הרדיפה:**
+1. חוקי נירנברג (1935) - שלילת אזרחות
+2. ליל הבדולח (1938) - פוגרומים
+3. גטאות (1940-1943)
+4. "הפתרון הסופי" (1942) - רצח שיטתי
 
-**Future (עתיד)**:
-- I will play - אני אשחק
-- I am going to play - אני הולך לשחק
+**מחנות השמדה:**
+• אושוויץ-בירקנאו
+• טרבלינקה
+• סוביבור
+• מיידנק
 
-**טיפים**:
-- ed בסוף = עבר רגיל
-- ing בסוף = פעולה מתמשכת
-- will/going to = עתיד
+**גבורה יהודית:**
+• מרד גטו ורשה
+• הפרטיזנים
+• חסידי אומות עולם
 
-רוצה דוגמאות נוספות?`,
+**לזכור ולא לשכוח:**
+• יום השואה - כ"ז בניסן
+• "זכור את אשר עשה לך עמלק"
+• עדויות ניצולים
+
+**מורשת השואה:**
+• מדינת ישראל - בית לעם היהודי
+• חוקים נגד גזענות
+• חינוך לסובלנות`,
+      ],
+    },
+
+    // Israel History
+    israelHistory: {
+      patterns: ["מדינת ישראל", "הקמת המדינה", "מלחמת העצמאות", "בן גוריון", "הציונות"],
+      responses: [
+        `🇮🇱 **היסטוריה של מדינת ישראל**
+
+**הציונות:**
+• תיאודור הרצל - "אם תרצו אין זו אגדה"
+• הקונגרס הציוני הראשון (1897)
+• גלי עלייה לארץ ישראל
+
+**דרך להקמת המדינה:**
+• הצהרת בלפור (1917)
+• המנדט הבריטי (1920-1948)
+• תוכנית החלוקה (1947)
+
+**הקמת המדינה - 14 במאי 1948:**
+• דוד בן-גוריון מכריז על עצמאות
+• "מדינה יהודית בארץ ישראל"
+
+**מלחמת העצמאות (1948-1949):**
+• 7 צבאות ערביים תקפו
+• ניצחון ישראלי
+• הסכמי שביתת נשק
+
+**מלחמות נוספות:**
+• מבצע סיני (1956)
+• מלחמת ששת הימים (1967)
+• מלחמת יום הכיפורים (1973)
+• מלחמת לבנון (1982)
+
+**הישגים:**
+• קליטת מיליוני עולים
+• בניית משק מתקדם
+• הייטק ומדע
+• הסכמי שלום עם מצרים וירדן`,
+      ],
+    },
+
+    // English Grammar
+    english: {
+      patterns: ["אנגלית", "english", "זמנים באנגלית", "tenses", "פועל", "verb", "דקדוק אנגלי"],
+      responses: [
+        `🇬🇧 **אנגלית - הזמנים העיקריים**
+
+**Past (עבר):**
+• Simple Past: I played ⟵ שיחקתי
+• Past Continuous: I was playing ⟵ הייתי משחק
+• Past Perfect: I had played ⟵ כבר שיחקתי (לפני משהו אחר)
+
+**Present (הווה):**
+• Simple Present: I play ⟵ אני משחק (הרגל)
+• Present Continuous: I am playing ⟵ אני משחק (עכשיו)
+• Present Perfect: I have played ⟵ שיחקתי (רלוונטי להווה)
+
+**Future (עתיד):**
+• Simple Future: I will play ⟵ אני אשחק
+• Going to: I am going to play ⟵ אני הולך לשחק
+• Present for Future: I play tomorrow ⟵ תוכניות קבועות
+
+**סימנים לזיהוי:**
+• ed בסוף = עבר רגיל
+• ing בסוף = פעולה מתמשכת
+• will/going to = עתיד
+• have/has + V3 = Perfect
+
+**פעלים לא רגילים חשובים:**
+• be → was/were → been
+• go → went → gone
+• have → had → had
+• do → did → done
+• see → saw → seen
+• eat → ate → eaten
+
+רוצה דוגמאות נוספות או תרגול?`,
       ],
     },
 
     // Essay Writing
     essay: {
-      patterns: ["חיבור", "כתיבת חיבור", "איך לכתוב חיבור", "מבנה חיבור"],
+      patterns: ["חיבור", "כתיבת חיבור", "איך לכתוב חיבור", "מבנה חיבור", "כתיבה"],
       responses: [
-        `**איך לכתוב חיבור מצוין**
+        `✍️ **איך לכתוב חיבור מנצח**
 
-**מבנה בסיסי**:
-1. **פתיחה** - הצגת הנושא ומשפט מפתח
-2. **גוף** - 2-3 פסקאות עם טיעונים ודוגמאות
-3. **סיכום** - חזרה על הרעיון המרכזי
+**מבנה בסיסי - 5 פסקאות:**
 
-**טיפים**:
-- התחל במשפט מושך תשומת לב
-- כל פסקה = רעיון אחד מרכזי
-- השתמש במילות קישור (ראשית, בנוסף, לסיכום)
-- הבא דוגמאות מהחיים
-- סיים במסר או מחשבה
+**1. פתיחה (הקדמה)**
+• משפט פתיחה מושך
+• רקע קצר לנושא
+• משפט מפתח (טענה מרכזית)
 
-**מילות קישור שימושיות**:
-לעומת זאת, מאידך, בנוסף לכך, יתר על כן, לסיכום`,
+**2-4. גוף החיבור**
+• פסקה = רעיון אחד מרכזי
+• משפט נושא → פיתוח → דוגמאות → סיכום
+• מילות קישור בין פסקאות
+
+**5. סיום**
+• סיכום הרעיונות
+• חזרה על המסר המרכזי
+• משפט סיום חזק
+
+**מילות קישור שימושיות:**
+• להוספה: בנוסף, יתר על כן, כמו כן
+• להנגדה: לעומת זאת, מצד שני, אולם
+• לדוגמה: למשל, כגון, לדוגמה
+• לסיכום: לסיכום, בשורה התחתונה, כללית
+
+**טיפים:**
+✓ תכנן לפני שאתה כותב
+✓ השתמש במילון נרדפות
+✓ בדוק איות ופיסוק
+✓ קרא בקול - לשמוע טעויות
+✓ בקש ממישהו לקרוא
+
+**פתיחות מומלצות:**
+• שאלה רטורית
+• ציטוט מפורסם
+• עובדה מפתיעה
+• סיפור קצר`,
       ],
     },
 
     // Hebrew Grammar
     hebrew: {
-      patterns: ["עברית", "דקדוק", "שורש", "בניין", "משקל"],
+      patterns: ["עברית", "דקדוק", "שורש", "בניין", "משקל", "דקדוק עברי"],
       responses: [
-        `**דקדוק עברי - יסודות**
+        `✡️ **דקדוק עברי - המדריך המלא**
 
-**שורש**: 3-4 אותיות שמהוות את הבסיס של מילים
-דוגמה: ש.מ.ר → שומר, נשמר, משמרת, שמירה
+**השורש:**
+3-4 אותיות שהן הבסיס של מילים רבות
+• ש.מ.ר → שומר, משמר, שמירה, נשמר
+• כ.ת.ב → כותב, מכתב, כתיבה, נכתב
 
-**הבניינים בעברית**:
-- פָּעַל - הבניין הבסיסי (כתב, למד)
-- נִפְעַל - סביל (נכתב, נלמד)  
-- פִּעֵל - חיזוק (דיבר, לימד)
-- פֻּעַל - סביל של פיעל (דובר, לומד)
-- הִפְעִיל - גורם לפעולה (הכתיב, הלמיד)
-- הֻפְעַל - סביל של הפעיל (הוכתב)
-- הִתְפַּעֵל - פעולה על עצמו (התלבש)
+**7 הבניינים:**
+1. **פָּעַל** - הבסיסי: כתב, למד
+2. **נִפְעַל** - סביל: נכתב, נלמד
+3. **פִּעֵל** - חיזוק: דיבר, לימד
+4. **פֻּעַל** - סביל של פיעל: דובר, לומד
+5. **הִפְעִיל** - גורם: הכתיב, הלמיד
+6. **הֻפְעַל** - סביל של הפעיל: הוכתב
+7. **הִתְפַּעֵל** - על עצמו: התלבש, התרחץ
 
-**זמנים**: עבר, הווה, עתיד
-**גופים**: אני, אתה, את, הוא, היא, אנחנו, אתם, אתן, הם, הן`,
+**הזמנים:**
+• עבר: כתבתי, כתבת, כתב...
+• הווה: כותב, כותבת, כותבים
+• עתיד: אכתוב, תכתוב, יכתוב...
+
+**הגופים:**
+אני, אתה, את, הוא, היא
+אנחנו, אתם, אתן, הם, הן
+
+**סמיכות:**
+שני שמות עצם שמתחברים
+• בית + ספר = בית ספר
+• שולחן + כתיבה = שולחן כתיבה`,
+      ],
+    },
+
+    // Geography
+    geography: {
+      patterns: ["גיאוגרפיה", "יבשות", "מדינות", "עולם", "מפה", "אקלים"],
+      responses: [
+        `🌍 **גיאוגרפיה - העולם שלנו**
+
+**7 היבשות:**
+1. אסיה - הגדולה ביותר
+2. אפריקה - השנייה בגודלה
+3. צפון אמריקה
+4. דרום אמריקה
+5. אנטארקטיקה - הקרה ביותר
+6. אירופה
+7. אוסטרליה/אוקיאניה
+
+**5 האוקיינוסים:**
+1. האוקיינוס השקט - הגדול
+2. האוקיינוס האטלנטי
+3. האוקיינוס ההודי
+4. הים הדרומי
+5. הים הארקטי
+
+**אזורי אקלים:**
+• טרופי - חם ולח כל השנה
+• ממוזג - 4 עונות
+• יבשתי - קיץ חם, חורף קר
+• קוטבי - קר מאוד
+• מדברי - יבש מאוד
+
+**ישראל:**
+• שטח: ~22,000 קמ"ר
+• אוכלוסייה: ~9.5 מיליון
+• בירה: ירושלים
+• גבולות: לבנון, סוריה, ירדן, מצרים
+• ים תיכון, ים המלח, ים סוף`,
+      ],
+    },
+
+    // Computer Science
+    computers: {
+      patterns: ["מחשבים", "תכנות", "קוד", "אלגוריתם", "מדעי המחשב", "תוכנה"],
+      responses: [
+        `💻 **מדעי המחשב - יסודות**
+
+**מה זה מחשב?**
+מכונה שמעבדת מידע לפי הוראות (תוכנה)
+
+**חומרה (Hardware):**
+• מעבד (CPU) - ה"מוח"
+• זיכרון (RAM) - אחסון זמני
+• דיסק קשיח - אחסון קבוע
+• מסך, מקלדת, עכבר
+
+**תוכנה (Software):**
+• מערכת הפעלה (Windows, macOS)
+• תוכנות יישום (Word, Chrome)
+• משחקים, אפליקציות
+
+**שפות תכנות:**
+• Python - קלה למתחילים
+• JavaScript - אתרים
+• Scratch - ילדים
+• Java - אנדרואיד
+• C++ - משחקים
+
+**מושגים בסיסיים:**
+• אלגוריתם = רצף צעדים לפתרון
+• משתנה = תיבה לאחסון מידע
+• לולאה = חזרה על פעולות
+• תנאי = if... then... else
+
+**בינארי:**
+מחשבים "מבינים" רק 0 ו-1
+• 0 = כבוי, 1 = דלוק
+• כל מידע מתורגם לבינארי`,
       ],
     },
 
     // Thanks
     thanks: {
-      patterns: ["תודה", "תודה רבה", "מעולה", "אחלה", "נהדר", "thanks"],
+      patterns: ["תודה", "תודה רבה", "מעולה", "אחלה", "נהדר", "thanks", "מגניב", "וואו"],
       responses: [
-        "בשמחה! אני תמיד כאן לעזור. יש עוד משהו?",
-        "אין בעד מה! המשך ללמוד ולהצליח!",
-        "שמח שיכולתי לעזור! בהצלחה בלימודים!",
+        "בשמחה רבה! 😊 אני תמיד כאן לעזור. יש עוד משהו שתרצה ללמוד?",
+        "אין בעד מה! המשך ללמוד ולהצליח! 🌟",
+        "שמח שיכולתי לעזור! בהצלחה בלימודים! 💪",
+        "תודה לך! אשמח לעזור עוד. מה הנושא הבא?",
+      ],
+    },
+
+    // Encouragement
+    encouragement: {
+      patterns: ["קשה לי", "אני לא מבין", "נמאס לי", "לא מצליח", "אני טיפש", "יואש"],
+      responses: [
+        `💪 **אל תוותר! כל אחד יכול להצליח!**
+
+**זכור:**
+• גם אינשטיין נכשל במבחנים
+• מייקל ג'ורדן הורד מנבחרת הכדורסל בתיכון
+• תומס אדיסון ניסה 1,000 פעמים לפני שהמציא את הנורה
+
+**טיפים להתגברות על קשיים:**
+1. קח הפסקה קצרה (5-10 דקות)
+2. נסה להסביר לעצמך בקול רם
+3. בקש עזרה - אין בושה בזה!
+4. פרק לחלקים קטנים יותר
+5. תתרגל - אף אחד לא נולד מומחה
+
+**משפטים לחיזוק:**
+• "אני יכול ללמוד הכל"
+• "טעויות הן חלק מהלמידה"
+• "כל צעד קטן מקרב למטרה"
+• "אני משתפר כל יום"
+
+אני מאמין בך! מה הנושא שקשה לך? ננסה יחד 🤝`,
+      ],
+    },
+
+    // Jokes
+    jokes: {
+      patterns: ["ספר בדיחה", "בדיחה", "משהו מצחיק", "תצחיק אותי"],
+      responses: [
+        `😄 **בדיחות ללמידה:**
+
+למה המתמטיקאי לא הולך לים?
+כי הוא מפחד מסינוסים! 📐
+
+למה הספר של מתמטיקה עצוב?
+כי יש לו הרבה בעיות! 📚
+
+מה אמר האלקטרון לפרוטון?
+"למה אתה תמיד כל כך חיובי?" ⚛️
+
+למה התלמיד הביא סולם לשיעור?
+כי רצה להגיע להשכלה גבוהה! 🪜
+
+מה ההבדל בין מורה לרכבת?
+המורה אומרת "תוציאו את המסטיק"
+והרכבת אומרת "צ'יק צ'ק, צ'יק צ'ק" 🚂
+
+עכשיו חזרה ללימודים! 😊
+על מה תרצה ללמוד?`,
       ],
     },
 
     // Default
     default: {
       responses: [
-        "שאלה מעניינת! תוכל לנסח אותה בצורה אחרת?",
-        "לא הבנתי בדיוק. אפשר לשאול על מתמטיקה, מדעים, היסטוריה, אנגלית או טיפים ללמידה.",
-        "אני כאן לעזור! נסה לשאול על נושא ספציפי בלימודים.",
+        "שאלה מעניינת! 🤔 תוכל לנסח אותה בצורה יותר ספציפית?",
+        `לא הבנתי בדיוק. אני יכול לעזור ב:
+• מתמטיקה 📐
+• מדעים 🔬
+• אנגלית 🇬🇧
+• היסטוריה 📜
+• עברית ✍️
+• טיפים ללמידה 💡
+
+מה תרצה ללמוד?`,
+        "אשמח לעזור! נסה לשאול שאלה ספציפית יותר על נושא לימודי.",
+        "לא מצאתי תשובה מדויקת. אולי תנסה לנסח אחרת או לשאול על נושא אחר?",
       ],
     },
   }
@@ -2004,8 +2785,10 @@ $$a² + b² = c²$$
   function findResponse(message) {
     const lowerMessage = message.toLowerCase()
 
+    // Check each knowledge category
     for (const [category, data] of Object.entries(knowledgeBase)) {
       if (category === "default") continue
+
       for (const pattern of data.patterns) {
         if (lowerMessage.includes(pattern.toLowerCase())) {
           const responses = data.responses
@@ -2014,13 +2797,21 @@ $$a² + b² = c²$$
       }
     }
 
+    // Return default response if no match found
     return knowledgeBase.default.responses[Math.floor(Math.random() * knowledgeBase.default.responses.length)]
   }
 
   function addMessage(text, isUser) {
     const messageDiv = document.createElement("div")
     messageDiv.className = `chat-message ${isUser ? "user-message" : "bot-message"}`
-    messageDiv.innerHTML = `<div class="message-content">${text.replace(/\n/g, "<br>")}</div>`
+
+    // Convert markdown-style formatting to HTML
+    const formattedText = text
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>")
+      .replace(/• /g, "&bull; ")
+
+    messageDiv.innerHTML = `<div class="message-content">${formattedText}</div>`
     chatMessages.appendChild(messageDiv)
     chatMessages.scrollTop = chatMessages.scrollHeight
   }
@@ -2032,23 +2823,35 @@ $$a² + b² = c²$$
     addMessage(message, true)
     chatInput.value = ""
 
-    // Simulate thinking
-    setTimeout(() => {
-      const response = findResponse(message)
-      addMessage(response, false)
-      addPoints(2)
-    }, 500)
+    // Show typing indicator
+    const typingDiv = document.createElement("div")
+    typingDiv.className = "chat-message bot-message typing-indicator"
+    typingDiv.innerHTML = '<div class="message-content">מקליד...</div>'
+    chatMessages.appendChild(typingDiv)
+    chatMessages.scrollTop = chatMessages.scrollHeight
+
+    // Simulate thinking time
+    setTimeout(
+      () => {
+        typingDiv.remove()
+        const response = findResponse(message)
+        addMessage(response, false)
+        addPoints(2)
+      },
+      800 + Math.random() * 700,
+    )
   }
 
   sendBtn?.addEventListener("click", sendMessage)
 
   chatInput?.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
       sendMessage()
     }
   })
 
-  suggestions.forEach((btn) => {
+  suggestions?.forEach((btn) => {
     btn.addEventListener("click", () => {
       chatInput.value = btn.textContent
       sendMessage()
@@ -2116,166 +2919,958 @@ function initStudyPlanner() {
 // ========================================
 // Flashcards
 // ========================================
+// ========================================
 function initFlashcards() {
-  const addCardBtn = document.getElementById("addFlashcard")
-  const flipCardBtn = document.getElementById("flipCard")
-  const prevCardBtn = document.getElementById("prevCard")
-  const nextCardBtn = document.getElementById("nextCard")
-  const cardFront = document.getElementById("cardFront")
-  const cardBack = document.getElementById("cardBack")
-  const cardCounter = document.getElementById("cardCounter")
-
-  if (!addCardBtn) return
-
-  const cards = JSON.parse(localStorage.getItem(`flashcards_${currentUser?.id}`) || "[]")
+  const flashcards = JSON.parse(localStorage.getItem("userFlashcards") || "[]")
   let currentIndex = 0
   let isFlipped = false
 
-  addCardBtn.addEventListener("click", () => {
-    const front = document.getElementById("flashcardFront").value.trim()
-    const back = document.getElementById("flashcardBack").value.trim()
-    const category = document.getElementById("flashcardCategory").value
+  const addBtn = document.getElementById("addFlashcard")
+  const frontInput = document.getElementById("flashcardFront")
+  const backInput = document.getElementById("flashcardBack")
+  const deckInput = document.getElementById("flashcardDeck")
+  const flashcard = document.getElementById("currentFlashcard")
+  const counter = document.getElementById("flashcardCounter")
+  const prevBtn = document.getElementById("prevFlashcard")
+  const nextBtn = document.getElementById("nextFlashcard")
+  const flipBtn = document.getElementById("flipFlashcard")
 
-    if (!front || !back) {
-      alert("אנא מלא את שני הצדדים של הכרטיסייה")
+  function updateDisplay() {
+    if (flashcards.length === 0) {
+      flashcard.querySelector(".flashcard-front p").textContent = "אין כרטיסיות עדיין"
+      flashcard.querySelector(".flashcard-back p").textContent = "הוסף כרטיסייה חדשה למעלה"
+      counter.textContent = "0 / 0"
       return
     }
 
-    cards.push({ id: Date.now(), front, back, category })
-    localStorage.setItem(`flashcards_${currentUser?.id}`, JSON.stringify(cards))
+    const card = flashcards[currentIndex]
+    flashcard.querySelector(".flashcard-front p").textContent = card.front
+    flashcard.querySelector(".flashcard-back p").textContent = card.back
+    counter.textContent = `${currentIndex + 1} / ${flashcards.length}`
 
-    document.getElementById("flashcardFront").value = ""
-    document.getElementById("flashcardBack").value = ""
-
-    displayCard()
-    addPoints(3)
-  })
-
-  flipCardBtn?.addEventListener("click", () => {
-    isFlipped = !isFlipped
-    document.querySelector(".flashcard-inner")?.classList.toggle("flipped", isFlipped)
-  })
-
-  prevCardBtn?.addEventListener("click", () => {
-    if (cards.length > 0) {
-      currentIndex = (currentIndex - 1 + cards.length) % cards.length
-      isFlipped = false
-      document.querySelector(".flashcard-inner")?.classList.remove("flipped")
-      displayCard()
-    }
-  })
-
-  nextCardBtn?.addEventListener("click", () => {
-    if (cards.length > 0) {
-      currentIndex = (currentIndex + 1) % cards.length
-      isFlipped = false
-      document.querySelector(".flashcard-inner")?.classList.remove("flipped")
-      displayCard()
-    }
-  })
-
-  function displayCard() {
-    if (cards.length === 0) {
-      cardFront.textContent = "אין כרטיסיות עדיין"
-      cardBack.textContent = "הוסף כרטיסייה חדשה"
-      cardCounter.textContent = "0/0"
-      return
-    }
-
-    const card = cards[currentIndex]
-    cardFront.textContent = card.front
-    cardBack.textContent = card.back
-    cardCounter.textContent = `${currentIndex + 1}/${cards.length}`
+    // Reset flip state
+    isFlipped = false
+    flashcard.classList.remove("flipped")
   }
 
-  displayCard()
+  function saveCards() {
+    localStorage.setItem("userFlashcards", JSON.stringify(flashcards))
+  }
+
+  addBtn?.addEventListener("click", () => {
+    const front = frontInput.value.trim()
+    const back = backInput.value.trim()
+    const deck = deckInput.value.trim() || "כללי"
+
+    if (!front || !back) {
+      alert("יש למלא את שני הצדדים של הכרטיסייה")
+      return
+    }
+
+    flashcards.push({ front, back, deck, created: new Date().toISOString() })
+    saveCards()
+
+    frontInput.value = ""
+    backInput.value = ""
+
+    currentIndex = flashcards.length - 1
+    updateDisplay()
+    addPoints(2)
+  })
+
+  flashcard?.addEventListener("click", () => {
+    isFlipped = !isFlipped
+    flashcard.classList.toggle("flipped", isFlipped)
+  })
+
+  flipBtn?.addEventListener("click", () => {
+    isFlipped = !isFlipped
+    flashcard.classList.toggle("flipped", isFlipped)
+  })
+
+  prevBtn?.addEventListener("click", () => {
+    if (flashcards.length === 0) return
+    currentIndex = (currentIndex - 1 + flashcards.length) % flashcards.length
+    updateDisplay()
+  })
+
+  nextBtn?.addEventListener("click", () => {
+    if (flashcards.length === 0) return
+    currentIndex = (currentIndex + 1) % flashcards.length
+    updateDisplay()
+  })
+
+  updateDisplay()
 }
 
 // ========================================
 // Dictionary
 // ========================================
+// ========================================
 function initDictionary() {
-  const searchBtn = document.getElementById("searchWord")
-  const wordInput = document.getElementById("dictionaryWord")
-  const resultDiv = document.getElementById("dictionaryResult")
+  const searchInput = document.getElementById("dictionarySearch")
+  const searchBtn = document.getElementById("dictionarySearchBtn")
+  const output = document.getElementById("dictionaryOutput")
 
-  if (!searchBtn) return
-
-  const dictionary = {
-    // Hebrew words
-    שלום: { meaning: "ברכה, מצב של שקט ורוגע", example: "שלום לכולם!" },
-    תודה: { meaning: "הבעת הכרת תודה", example: "תודה רבה על העזרה" },
-    ספר: { meaning: "חיבור כתוב המכיל מידע או סיפורים", example: "קראתי ספר מרתק" },
-    למידה: { meaning: "תהליך רכישת ידע ומיומנויות", example: "הלמידה דורשת התמדה" },
-    הצלחה: { meaning: "השגת מטרה או יעד", example: "ההצלחה דורשת עבודה קשה" },
+  // Extensive Hebrew dictionary database
+  const hebrewDictionary = {
+    // Common Words
+    שלום: {
+      word: "שָׁלוֹם",
+      type: "שם עצם, זכר",
+      definition: "מצב של שקט, ביטחון והרמוניה; ברכה בעת פגישה או פרידה",
+      examples: ["שלום רב!", "יש שלום בארץ", "לשלום ולברכה"],
+      synonyms: ["שקט", "שלווה", "רוגע"],
+      root: "ש.ל.מ",
+    },
+    ספר: {
+      word: "סֵפֶר",
+      type: "שם עצם, זכר",
+      definition: "חיבור כתוב או מודפס בעל כריכה; יצירה ספרותית",
+      examples: ["קראתי ספר מעניין", "ספר הספרים", "ספר לימוד"],
+      synonyms: ["כרך", "חיבור", "יצירה"],
+      root: "ס.פ.ר",
+    },
+    בית: {
+      word: "בַּיִת",
+      type: "שם עצם, זכר",
+      definition: "מבנה המשמש למגורים; משפחה, משק בית",
+      examples: ["אני גר בבית יפה", "בית ספר", "בעלת הבית"],
+      synonyms: ["דירה", "מעון", "משכן"],
+      root: "ב.י.ת",
+    },
+    ילד: {
+      word: "יֶלֶד",
+      type: "שם עצם, זכר",
+      definition: "אדם צעיר שטרם הגיע לגיל ההתבגרות; בן או בת",
+      examples: ["הילד משחק בחצר", "ילדים ונוער", "ילד טוב"],
+      synonyms: ["נער", "פעוט", "תינוק"],
+      root: "י.ל.ד",
+    },
+    ילדה: {
+      word: "יַלְדָּה",
+      type: "שם עצם, נקבה",
+      definition: "נערה צעירה שטרם הגיעה לגיל ההתבגרות; בת",
+      examples: ["הילדה רוקדת", "ילדה חכמה", "ילדה יפה"],
+      synonyms: ["נערה", "בת", "עלמה"],
+      root: "י.ל.ד",
+    },
+    אהבה: {
+      word: "אַהֲבָה",
+      type: "שם עצם, נקבה",
+      definition: "רגש עמוק של חיבה, משיכה והערצה כלפי אדם או דבר",
+      examples: ["אהבה אמיתית", "אהבת הורים", "מכתב אהבה"],
+      synonyms: ["חיבה", "אהדה", "רומנטיקה"],
+      root: "א.ה.ב",
+    },
+    חבר: {
+      word: "חָבֵר",
+      type: "שם עצם, זכר",
+      definition: "אדם קרוב שיש עמו קשר של ידידות; עמית, שותף",
+      examples: ["הוא החבר הכי טוב שלי", "חברים לדרך", "חבר לכיתה"],
+      synonyms: ["ידיד", "רע", "עמית"],
+      root: "ח.ב.ר",
+    },
+    חברה: {
+      word: "חֲבֵרָה",
+      type: "שם עצם, נקבה",
+      definition: "אישה קרובה שיש עמה קשר של ידידות; בת זוג",
+      examples: ["היא חברה טובה", "חברה לספסל", "יש לו חברה"],
+      synonyms: ["ידידה", "רעיה", "עמיתה"],
+      root: "ח.ב.ר",
+    },
+    לומד: {
+      word: "לוֹמֵד",
+      type: "פועל, בניין קל",
+      definition: "רוכש ידע או מיומנות; תלמיד הלומד בבית ספר",
+      examples: ["הוא לומד מתמטיקה", "לומד לבחינה", "לומד באוניברסיטה"],
+      synonyms: ["מתלמד", "רוכש", "קולט"],
+      root: "ל.מ.ד",
+    },
+    כותב: {
+      word: "כּוֹתֵב",
+      type: "פועל, בניין קל",
+      definition: "מעלה על הכתב מילים או סימנים; מחבר יצירה",
+      examples: ["הוא כותב מכתב", "כותב שירים", "כותב בעברית"],
+      synonyms: ["מחבר", "רושם", "מתעד"],
+      root: "כ.ת.ב",
+    },
+    קורא: {
+      word: "קוֹרֵא",
+      type: "פועל, בניין קל",
+      definition: "מפענח כתב ומבין את משמעותו; קריאה בקול",
+      examples: ["הוא קורא ספר", "קורא עיתון", "קורא בקול רם"],
+      synonyms: ["מעיין", "לומד", "מפענח"],
+      root: "ק.ר.א",
+    },
+    הולך: {
+      word: "הוֹלֵךְ",
+      type: "פועל, בניין קל",
+      definition: "נע ברגליים ממקום למקום; מתקדם",
+      examples: ["הוא הולך לבית הספר", "הולך ברחוב", "הולך ומשתפר"],
+      synonyms: ["צועד", "פוסע", "מתקדם"],
+      root: "ה.ל.כ",
+    },
+    רץ: {
+      word: "רָץ",
+      type: "פועל, בניין קל",
+      definition: "נע במהירות ברגליים; ממהר",
+      examples: ["הילד רץ בפארק", "רץ מרתון", "רץ לעזרה"],
+      synonyms: ["דוהר", "ממהר", "נחפז"],
+      root: "ר.ו.צ",
+    },
+    אוכל: {
+      word: "אוֹכֵל",
+      type: "פועל / שם עצם",
+      definition: "מכניס מזון לפה ובולע; מזון באופן כללי",
+      examples: ["הוא אוכל ארוחת צהריים", "אוכל טעים", "אוכל בריא"],
+      synonyms: ["סועד", "טועם", "מזון"],
+      root: "א.כ.ל",
+    },
+    שותה: {
+      word: "שׁוֹתֶה",
+      type: "פועל, בניין קל",
+      definition: "מכניס משקה לפה ובולע",
+      examples: ["הוא שותה מים", "שותה קפה", "שותה לבריאות"],
+      synonyms: ["גומע", "לוגם", "מתרווה"],
+      root: "ש.ת.ה",
+    },
+    יפה: {
+      word: "יָפֶה",
+      type: "שם תואר",
+      definition: "נעים למראה, מושך את העין; טוב, ראוי לשבח",
+      examples: ["נוף יפה", "שמלה יפה", "מעשה יפה"],
+      synonyms: ["נאה", "יאה", "מקסים"],
+      root: "י.פ.ה",
+    },
+    גדול: {
+      word: "גָּדוֹל",
+      type: "שם תואר",
+      definition: "בעל מידות רבות; חשוב, משמעותי",
+      examples: ["בית גדול", "חלום גדול", "אדם גדול"],
+      synonyms: ["ענק", "עצום", "רחב"],
+      root: "ג.ד.ל",
+    },
+    קטן: {
+      word: "קָטָן",
+      type: "שם תואר",
+      definition: "בעל מידות מועטות; צעיר, לא משמעותי",
+      examples: ["כלב קטן", "הילד הקטן", "פרט קטן"],
+      synonyms: ["זעיר", "פעוט", "מצומצם"],
+      root: "ק.ט.נ",
+    },
+    חדש: {
+      word: "חָדָשׁ",
+      type: "שם תואר",
+      definition: "שנוצר לאחרונה; שונה מהקודם, מודרני",
+      examples: ["טלפון חדש", "שנה חדשה", "רעיון חדש"],
+      synonyms: ["טרי", "מודרני", "עדכני"],
+      root: "ח.ד.ש",
+    },
+    ישן: {
+      word: "יָשָׁן",
+      type: "שם תואר / פועל",
+      definition: "קיים מזה זמן רב; במצב שינה",
+      examples: ["ספר ישן", "הוא ישן במיטה", "חבר ישן"],
+      synonyms: ["עתיק", "קדום", "נושן"],
+      root: "י.ש.נ",
+    },
+    טוב: {
+      word: "טוֹב",
+      type: "שם תואר",
+      definition: "בעל איכות גבוהה; מוסרי, ראוי",
+      examples: ["יום טוב", "אדם טוב", "ציון טוב"],
+      synonyms: ["מצוין", "נפלא", "ראוי"],
+      root: "ט.ו.ב",
+    },
+    רע: {
+      word: "רַע",
+      type: "שם תואר",
+      definition: "בעל איכות נמוכה; לא מוסרי, מזיק",
+      examples: ["מזג אוויר רע", "אדם רע", "הרגשה רעה"],
+      synonyms: ["גרוע", "שלילי", "מזיק"],
+      root: "ר.ע.ע",
+    },
+    מהיר: {
+      word: "מָהִיר",
+      type: "שם תואר",
+      definition: "נע או פועל במהירות רבה; חד, זריז",
+      examples: ["רכבת מהירה", "תגובה מהירה", "שינוי מהיר"],
+      synonyms: ["זריז", "חד", "מיידי"],
+      root: "מ.ה.ר",
+    },
+    איטי: {
+      word: "אִיטִי",
+      type: "שם תואר",
+      definition: "נע או פועל בקצב נמוך; לא ממהר",
+      examples: ["צב איטי", "תהליך איטי", "הליכה איטית"],
+      synonyms: ["מתון", "עצלני", "מושהה"],
+      root: "א.ט.ט",
+    },
+    חכם: {
+      word: "חָכָם",
+      type: "שם תואר / שם עצם",
+      definition: "בעל תבונה ושכל; מלומד, נבון",
+      examples: ["תלמיד חכם", "החלטה חכמה", "אדם חכם"],
+      synonyms: ["נבון", "משכיל", "פיקח"],
+      root: "ח.כ.מ",
+    },
+    שמח: {
+      word: "שָׂמֵחַ",
+      type: "שם תואר",
+      definition: "חש שמחה, אושר; עליז, מרוצה",
+      examples: ["ילד שמח", "חג שמח", "אני שמח לראותך"],
+      synonyms: ["מאושר", "עליז", "מרוצה"],
+      root: "ש.מ.ח",
+    },
+    עצוב: {
+      word: "עָצוּב",
+      type: "שם תואר",
+      definition: "חש עצב, צער; מדוכא",
+      examples: ["סיפור עצוב", "הוא עצוב היום", "שיר עצוב"],
+      synonyms: ["נוגה", "מדוכא", "אומלל"],
+      root: "ע.צ.ב",
+    },
+    אמא: {
+      word: "אִמָּא",
+      type: "שם עצם, נקבה",
+      definition: "האם, ההורה הנשי; כינוי חיבה",
+      examples: ["אמא שלי", "יום האם", "אמא אוהבת"],
+      synonyms: ["אם", "הורה", "יולדת"],
+      root: "א.מ.מ",
+    },
+    אבא: {
+      word: "אַבָּא",
+      type: "שם עצם, זכר",
+      definition: "האב, ההורה הזכר; כינוי חיבה",
+      examples: ["אבא שלי", "אבא ובן", "אבא עובד"],
+      synonyms: ["אב", "הורה", "אבי"],
+      root: "א.ב.ב",
+    },
+    מורה: {
+      word: "מוֹרֶה",
+      type: "שם עצם",
+      definition: "אדם שמקצועו ללמד; מדריך, מנחה",
+      examples: ["מורה למתמטיקה", "המורה הטובה", "מורה דרך"],
+      synonyms: ["מלמד", "מחנך", "מדריך"],
+      root: "י.ר.ה",
+    },
+    תלמיד: {
+      word: "תַּלְמִיד",
+      type: "שם עצם, זכר",
+      definition: "אדם הלומד במוסד חינוכי; מי שלומד מרב או מורה",
+      examples: ["תלמיד חכם", "תלמיד בכיתה ה", "תלמיד מצטיין"],
+      synonyms: ["לומד", "חניך", "שוליה"],
+      root: "ל.מ.ד",
+    },
+    כיתה: {
+      word: "כִּתָּה",
+      type: "שם עצם, נקבה",
+      definition: "קבוצת תלמידים הלומדים יחד; חדר לימוד",
+      examples: ["כיתה א", "חדר הכיתה", "כיתת לימוד"],
+      synonyms: ["קבוצה", "מחלקה", "שכבה"],
+      root: "כ.ת.ת",
+    },
+    שיעור: {
+      word: "שִׁעוּר",
+      type: "שם עצם, זכר",
+      definition: "יחידת לימוד; משימה לביצוע בבית",
+      examples: ["שיעור מתמטיקה", "שיעורי בית", "לוח שיעורים"],
+      synonyms: ["לקח", "הרצאה", "תרגיל"],
+      root: "ש.ע.ר",
+    },
+    מבחן: {
+      word: "מִבְחָן",
+      type: "שם עצם, זכר",
+      definition: "בדיקה של ידע או יכולת; ניסיון",
+      examples: ["מבחן במתמטיקה", "עמד במבחן", "מבחן נהיגה"],
+      synonyms: ["בחינה", "מבדק", "ניסיון"],
+      root: "ב.ח.נ",
+    },
+    ציון: {
+      word: "צִיּוּן",
+      type: "שם עצם, זכר",
+      definition: "הערכה מספרית של הישג; סימון, ציון דרך",
+      examples: ["ציון 100", "ציון טוב", "ציון לשבח"],
+      synonyms: ["הערכה", "דירוג", "סימן"],
+      root: "צ.י.נ",
+    },
+    שאלה: {
+      word: "שְׁאֵלָה",
+      type: "שם עצם, נקבה",
+      definition: "משפט המבקש מידע; בעיה לפתרון",
+      examples: ["יש לי שאלה", "שאלה קשה", "שאלות ותשובות"],
+      synonyms: ["תהייה", "בעיה", "חידה"],
+      root: "ש.א.ל",
+    },
+    תשובה: {
+      word: "תְּשׁוּבָה",
+      type: "שם עצם, נקבה",
+      definition: "מענה לשאלה; פתרון לבעיה",
+      examples: ["תשובה נכונה", "מחפש תשובות", "אין תשובה"],
+      synonyms: ["מענה", "פתרון", "תגובה"],
+      root: "ש.ו.ב",
+    },
+    עולם: {
+      word: "עוֹלָם",
+      type: "שם עצם, זכר",
+      definition: "כדור הארץ וכל מה שעליו; היקום; תחום מסוים",
+      examples: ["מסביב לעולם", "עולם חדש", "עולם הספורט"],
+      synonyms: ["תבל", "יקום", "ארץ"],
+      root: "ע.ל.מ",
+    },
+    ארץ: {
+      word: "אֶרֶץ",
+      type: "שם עצם, נקבה",
+      definition: "מדינה, טריטוריה; קרקע, אדמה",
+      examples: ["ארץ ישראל", "ארץ רחוקה", "פני הארץ"],
+      synonyms: ["מדינה", "אדמה", "טריטוריה"],
+      root: "א.ר.צ",
+    },
+    עיר: {
+      word: "עִיר",
+      type: "שם עצם, נקבה",
+      definition: "יישוב גדול ומפותח; מרכז עירוני",
+      examples: ["עיר גדולה", "מרכז העיר", "עיר הבירה"],
+      synonyms: ["כרך", "מטרופולין", "יישוב"],
+      root: "ע.י.ר",
+    },
+    כפר: {
+      word: "כְּפָר",
+      type: "שם עצם, זכר",
+      definition: "יישוב קטן, בדרך כלל חקלאי",
+      examples: ["כפר קטן", "חיי הכפר", "בן כפר"],
+      synonyms: ["יישוב", "מושב", "עיירה"],
+      root: "כ.פ.ר",
+    },
+    דרך: {
+      word: "דֶּרֶךְ",
+      type: "שם עצם, נקבה",
+      definition: "נתיב, כביש; שיטה, אופן",
+      examples: ["דרך ארוכה", "בדרך הביתה", "דרך חיים"],
+      synonyms: ["נתיב", "שביל", "אופן"],
+      root: "ד.ר.כ",
+    },
+    זמן: {
+      word: "זְמַן",
+      type: "שם עצם, זכר",
+      definition: "המשכיות של אירועים; עונה, תקופה",
+      examples: ["אין לי זמן", "זמן רב", "באותו זמן"],
+      synonyms: ["עת", "תקופה", "שעה"],
+      root: "ז.מ.נ",
+    },
+    יום: {
+      word: "יוֹם",
+      type: "שם עצם, זכר",
+      definition: "תקופה של 24 שעות; שעות האור",
+      examples: ["יום יפה", "במהלך היום", "יום הולדת"],
+      synonyms: ["יממה", "תאריך"],
+      root: "י.ו.מ",
+    },
+    לילה: {
+      word: "לַיְלָה",
+      type: "שם עצם, זכר",
+      definition: "הזמן בין שקיעה לזריחה; חושך",
+      examples: ["לילה טוב", "באמצע הלילה", "לילה חשוך"],
+      synonyms: ["חשכה", "אישון", "ערב"],
+      root: "ל.י.ל",
+    },
+    בוקר: {
+      word: "בֹּקֶר",
+      type: "שם עצם, זכר",
+      definition: "הזמן המוקדם של היום, לאחר הזריחה",
+      examples: ["בוקר טוב", "בשעות הבוקר", "ארוחת בוקר"],
+      synonyms: ["שחר", "עלות השחר"],
+      root: "ב.ק.ר",
+    },
+    ערב: {
+      word: "עֶרֶב",
+      type: "שם עצם, זכר",
+      definition: "הזמן בין אחר הצהריים ללילה",
+      examples: ["ערב טוב", "לקראת ערב", "ערב שבת"],
+      synonyms: ["שקיעה", "דמדומים"],
+      root: "ע.ר.ב",
+    },
+    שמש: {
+      word: "שֶׁמֶשׁ",
+      type: "שם עצם, נקבה",
+      definition: "הכוכב המרכזי של מערכת השמש; אור יום",
+      examples: ["אור השמש", "שקיעת השמש", "יום שמשי"],
+      synonyms: ["חמה"],
+      root: "ש.מ.ש",
+    },
+    ירח: {
+      word: "יָרֵחַ",
+      type: "שם עצם, זכר",
+      definition: "הלוויין הטבעי של כדור הארץ; חודש",
+      examples: ["אור הירח", "ירח מלא", "ירח דבש"],
+      synonyms: ["לבנה", "סהר"],
+      root: "י.ר.ח",
+    },
+    כוכב: {
+      word: "כּוֹכָב",
+      type: "שם עצם, זכר",
+      definition: "גוף שמיימי זוהר; אדם מפורסם",
+      examples: ["כוכב בשמיים", "כוכב קולנוע", "כוכב נופל"],
+      synonyms: ["שמש", "סלבריטי"],
+      root: "כ.כ.ב",
+    },
+    מים: {
+      word: "מַיִם",
+      type: "שם עצם, זכר רבים",
+      definition: "נוזל חיוני לחיים; H2O",
+      examples: ["כוס מים", "מים קרים", "מי ים"],
+      synonyms: ["נוזל"],
+      root: "מ.י.מ",
+    },
+    אש: {
+      word: "אֵשׁ",
+      type: "שם עצם, נקבה",
+      definition: "להבה, בעירה; חום עז",
+      examples: ["אש בוערת", "מכבי אש", "לשחק באש"],
+      synonyms: ["להבה", "שריפה", "אור"],
+      root: "א.ש.ש",
+    },
+    רוח: {
+      word: "רוּחַ",
+      type: "שם עצם, נקבה",
+      definition: "תנועת אוויר; נשמה, תחושה",
+      examples: ["רוח חזקה", "רוח טובה", "מצב רוח"],
+      synonyms: ["משב", "נשמה", "אווירה"],
+      root: "ר.ו.ח",
+    },
+    אדמה: {
+      word: "אֲדָמָה",
+      type: "שם עצם, נקבה",
+      definition: "פני השטח של כדור הארץ; קרקע",
+      examples: ["אדמה פורייה", "עובד אדמה", "רעידת אדמה"],
+      synonyms: ["קרקע", "ארץ", "שטח"],
+      root: "א.ד.מ",
+    },
+    עץ: {
+      word: "עֵץ",
+      type: "שם עצם, זכר",
+      definition: "צמח גדול בעל גזע וענפים; חומר מעץ",
+      examples: ["עץ גבוה", "שולחן עץ", "עץ פרי"],
+      synonyms: ["אילן"],
+      root: "ע.צ.צ",
+    },
+    פרח: {
+      word: "פֶּרַח",
+      type: "שם עצם, זכר",
+      definition: "איבר הרבייה של צמח; אדם צעיר",
+      examples: ["פרח יפה", "זר פרחים", "פרח אדום"],
+      synonyms: ["ציץ", "ניצן"],
+      root: "פ.ר.ח",
+    },
+    חיה: {
+      word: "חַיָּה",
+      type: "שם עצם, נקבה",
+      definition: "יצור חי שאינו אדם או צמח; בעל חיים",
+      examples: ["חיות בר", "גן חיות", "חיה מסוכנת"],
+      synonyms: ["בעל חיים", "יצור"],
+      root: "ח.י.ה",
+    },
+    כלב: {
+      word: "כֶּלֶב",
+      type: "שם עצם, זכר",
+      definition: "בעל חיים ביתי מאולף, ידיד האדם",
+      examples: ["כלב נאמן", "גור כלבים", "כלב שמירה"],
+      synonyms: [],
+      root: "כ.ל.ב",
+    },
+    חתול: {
+      word: "חָתוּל",
+      type: "שם עצם, זכר",
+      definition: "בעל חיים ביתי קטן מאולף",
+      examples: ["חתול שחור", "גור חתולים", "חתול רחוב"],
+      synonyms: [],
+      root: "ח.ת.ל",
+    },
+    ציפור: {
+      word: "צִפּוֹר",
+      type: "שם עצם, נקבה",
+      definition: "בעל חיים מכוסה נוצות ובעל כנפיים",
+      examples: ["ציפור שרה", "קן ציפורים", "ציפור נודדת"],
+      synonyms: ["עוף"],
+      root: "צ.פ.ר",
+    },
+    לב: {
+      word: "לֵב",
+      type: "שם עצם, זכר",
+      definition: "איבר שואב הדם בגוף; מרכז הרגשות",
+      examples: ["לב אוהב", "בכל הלב", "שבור לב"],
+      synonyms: ["ליבה", "מרכז"],
+      root: "ל.ב.ב",
+    },
+    ראש: {
+      word: "רֹאשׁ",
+      type: "שם עצם, זכר",
+      definition: "חלק עליון של הגוף; מנהיג; התחלה",
+      examples: ["כאב ראש", "ראש הממשלה", "ראש השנה"],
+      synonyms: ["גולגולת", "מנהיג", "פסגה"],
+      root: "ר.א.ש",
+    },
+    יד: {
+      word: "יָד",
+      type: "שם עצם, נקבה",
+      definition: "איבר בגוף המשמש לאחיזה; עזרה",
+      examples: ["יד ימין", "לתת יד", "כתב יד"],
+      synonyms: ["כף יד", "זרוע"],
+      root: "י.ד.ד",
+    },
+    רגל: {
+      word: "רֶגֶל",
+      type: "שם עצם, נקבה",
+      definition: "איבר בגוף המשמש להליכה; פעם, הזדמנות",
+      examples: ["כאב ברגל", "ברגל", "רגל שולחן"],
+      synonyms: ["כף רגל"],
+      root: "ר.ג.ל",
+    },
+    עין: {
+      word: "עַיִן",
+      type: "שם עצם, נקבה",
+      definition: "איבר הראייה; מבט; מעיין",
+      examples: ["עין כחולה", "בעין יפה", "עין מים"],
+      synonyms: ["מבט"],
+      root: "ע.י.נ",
+    },
+    אוזן: {
+      word: "אֹזֶן",
+      type: "שם עצם, נקבה",
+      definition: "איבר השמיעה",
+      examples: ["כאב אוזניים", "אוזן קשבת", "לוחש לאוזן"],
+      synonyms: [],
+      root: "א.ז.נ",
+    },
+    פה: {
+      word: "פֶּה",
+      type: "שם עצם, זכר",
+      definition: "פתח בפנים לאכילה ודיבור; כניסה",
+      examples: ["פתח פה", "בעל פה", "פה המערה"],
+      synonyms: ["פיה", "פתח"],
+      root: "פ.ה.ה",
+    },
+    אף: {
+      word: "אַף",
+      type: "שם עצם, זכר",
+      definition: "איבר הריח והנשימה בפנים",
+      examples: ["נזלת מהאף", "אף גדול", "להרים אף"],
+      synonyms: ["חוטם"],
+      root: "א.נ.פ",
+    },
+    // Mathematical terms
+    מספר: {
+      word: "מִסְפָּר",
+      type: "שם עצם, זכר",
+      definition: "סימן המייצג כמות; מניין",
+      examples: ["מספר גדול", "מספר טלפון", "מספר אי-זוגי"],
+      synonyms: ["ספרה", "כמות"],
+      root: "ס.פ.ר",
+    },
+    חיבור: {
+      word: "חִבּוּר",
+      type: "שם עצם, זכר",
+      definition: "פעולה חשבונית של הוספה; חיבור בין דברים",
+      examples: ["תרגיל חיבור", "חיבור מספרים", "נקודת חיבור"],
+      synonyms: ["סכום", "צירוף"],
+      root: "ח.ב.ר",
+    },
+    חיסור: {
+      word: "חִסּוּר",
+      type: "שם עצם, זכר",
+      definition: "פעולה חשבונית של הפחתה",
+      examples: ["תרגיל חיסור", "10 פחות 3", "חיסור מספרים"],
+      synonyms: ["הפחתה", "גריעה"],
+      root: "ח.ס.ר",
+    },
+    כפל: {
+      word: "כֶּפֶל",
+      type: "שם עצם, זכר",
+      definition: "פעולה חשבונית של הכפלה; פי שניים",
+      examples: ["לוח הכפל", "תרגיל כפל", "כפל מבצעים"],
+      synonyms: ["הכפלה"],
+      root: "כ.פ.ל",
+    },
+    חילוק: {
+      word: "חִלּוּק",
+      type: "שם עצם, זכר",
+      definition: "פעולה חשבונית של חלוקה",
+      examples: ["תרגיל חילוק", "חילוק ל-3", "חילוק שווה"],
+      synonyms: ["חלוקה"],
+      root: "ח.ל.ק",
+    },
+    משולש: {
+      word: "מְשֻׁלָּשׁ",
+      type: "שם עצם, זכר",
+      definition: "צורה גאומטרית בעלת שלוש צלעות ושלוש זוויות",
+      examples: ["משולש שווה צלעות", "משולש ישר זווית", "שטח משולש"],
+      synonyms: ["טריגון"],
+      root: "ש.ל.ש",
+    },
+    ריבוע: {
+      word: "רִבּוּעַ",
+      type: "שם עצם, זכר",
+      definition: "צורה גאומטרית בעלת ארבע צלעות שוות וזוויות ישרות",
+      examples: ["ריבוע קסם", "שטח ריבוע", "מטר ריבוע"],
+      synonyms: ["מרובע"],
+      root: "ר.ב.ע",
+    },
+    עיגול: {
+      word: "עִגּוּל",
+      type: "שם עצם, זכר",
+      definition: "צורה גאומטרית עגולה; קירוב מספר",
+      examples: ["שטח עיגול", "עיגול מספרים", "היקף עיגול"],
+      synonyms: ["מעגל"],
+      root: "ע.ג.ל",
+    },
   }
 
-  searchBtn.addEventListener("click", () => {
-    const word = wordInput.value.trim()
-    if (!word) return
+  function searchWord() {
+    const query = searchInput.value.trim().toLowerCase()
 
-    const result = dictionary[word]
-    if (result) {
-      resultDiv.innerHTML = `
-        <div class="dictionary-entry">
-          <h4>${word}</h4>
-          <p><strong>משמעות:</strong> ${result.meaning}</p>
-          <p><strong>דוגמה:</strong> ${result.example}</p>
-        </div>
-      `
-    } else {
-      resultDiv.innerHTML = `<p>המילה "${word}" לא נמצאה במילון. נסה מילה אחרת.</p>`
+    if (!query) {
+      output.innerHTML = '<p class="dictionary-hint">הכנס מילה לחיפוש</p>'
+      return
     }
 
-    addPoints(1)
-  })
+    // Search for exact match first
+    let result = hebrewDictionary[query]
 
-  wordInput?.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") searchBtn.click()
+    // If no exact match, search for partial matches
+    if (!result) {
+      const keys = Object.keys(hebrewDictionary)
+      const partialMatch = keys.find((key) => key.includes(query) || query.includes(key))
+      if (partialMatch) {
+        result = hebrewDictionary[partialMatch]
+      }
+    }
+
+    if (result) {
+      output.innerHTML = `
+        <div class="dictionary-result">
+          <div class="dictionary-word">${result.word}</div>
+          <div class="dictionary-type">${result.type}</div>
+          <div class="dictionary-definition">
+            <strong>הגדרה:</strong> ${result.definition}
+          </div>
+          ${result.root ? `<div class="dictionary-root"><strong>שורש:</strong> ${result.root}</div>` : ""}
+          <div class="dictionary-examples">
+            <strong>דוגמאות:</strong>
+            <ul>
+              ${result.examples.map((ex) => `<li>${ex}</li>`).join("")}
+            </ul>
+          </div>
+          ${
+            result.synonyms && result.synonyms.length > 0
+              ? `
+            <div class="dictionary-synonyms">
+              <strong>מילים נרדפות:</strong> ${result.synonyms.join(", ")}
+            </div>
+          `
+              : ""
+          }
+        </div>
+      `
+      addPoints(2)
+    } else {
+      // Suggest similar words
+      const keys = Object.keys(hebrewDictionary)
+      const suggestions = keys
+        .filter((key) => key.charAt(0) === query.charAt(0) || key.includes(query.substring(0, 2)))
+        .slice(0, 5)
+
+      output.innerHTML = `
+        <div class="dictionary-not-found">
+          <p>המילה "${query}" לא נמצאה במילון</p>
+          ${
+            suggestions.length > 0
+              ? `
+            <p>אולי התכוונת ל:</p>
+            <div class="dictionary-suggestions">
+              ${suggestions.map((s) => `<button class="suggestion-btn" onclick="document.getElementById('dictionarySearch').value='${s}'; document.getElementById('dictionarySearchBtn').click();">${s}</button>`).join("")}
+            </div>
+          `
+              : ""
+          }
+        </div>
+      `
+    }
+  }
+
+  searchBtn?.addEventListener("click", searchWord)
+  searchInput?.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      searchWord()
+    }
   })
 }
 
 // ========================================
 // Translator
 // ========================================
+// ========================================
 function initTranslator() {
-  const translateBtn = document.getElementById("translateText")
-  const inputText = document.getElementById("translatorInput")
-  const outputText = document.getElementById("translatorOutput")
+  const translateBtn = document.getElementById("translateBtn")
+  const sourceText = document.getElementById("translatorSource")
+  const targetText = document.getElementById("translatorTarget")
+  const sourceLang = document.getElementById("sourceLang")
+  const targetLang = document.getElementById("targetLang")
+  const swapBtn = document.getElementById("swapLanguages")
 
-  if (!translateBtn) return
+  async function translateText() {
+    const text = sourceText.value.trim()
 
-  const translations = {
-    שלום: "Hello",
-    תודה: "Thank you",
-    בוקר: "Morning",
-    ערב: "Evening",
-    ספר: "Book",
-    בית: "House",
-    מים: "Water",
-    אוכל: "Food",
-    חבר: "Friend",
-    משפחה: "Family",
-    אהבה: "Love",
-    שמש: "Sun",
-    ירח: "Moon",
-    כוכב: "Star",
+    if (!text) {
+      targetText.value = ""
+      return
+    }
+
+    const from = sourceLang.value
+    const to = targetLang.value
+
+    targetText.value = "מתרגם..."
+
+    try {
+      // Using MyMemory Translation API (free, no API key needed)
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`,
+      )
+      const data = await response.json()
+
+      if (data.responseStatus === 200 && data.responseData) {
+        targetText.value = data.responseData.translatedText
+        addPoints(3)
+      } else {
+        // Fallback to local translation for common phrases
+        targetText.value = localTranslate(text, from, to)
+      }
+    } catch (error) {
+      console.error("Translation error:", error)
+      // Fallback to local translation
+      targetText.value = localTranslate(text, from, to)
+    }
   }
 
-  translateBtn.addEventListener("click", () => {
-    const text = inputText.value.trim()
-    if (!text) return
+  // Local fallback translation for common words/phrases
+  function localTranslate(text, from, to) {
+    const translations = {
+      "he-en": {
+        שלום: "Hello",
+        תודה: "Thank you",
+        בבקשה: "Please / You're welcome",
+        כן: "Yes",
+        לא: "No",
+        "מה שלומך": "How are you",
+        "אני בסדר": "I am fine",
+        "בוקר טוב": "Good morning",
+        "ערב טוב": "Good evening",
+        "לילה טוב": "Good night",
+        להתראות: "Goodbye",
+        "אני אוהב אותך": "I love you",
+        "מה השעה": "What time is it",
+        איפה: "Where",
+        מתי: "When",
+        למה: "Why",
+        איך: "How",
+        מי: "Who",
+        מה: "What",
+        ספר: "Book",
+        בית: "House",
+        מים: "Water",
+        אוכל: "Food",
+        ילד: "Boy/Child",
+        ילדה: "Girl",
+        אמא: "Mom",
+        אבא: "Dad",
+        אח: "Brother",
+        אחות: "Sister",
+        חבר: "Friend",
+        "בית ספר": "School",
+        מורה: "Teacher",
+        תלמיד: "Student",
+      },
+      "en-he": {
+        hello: "שלום",
+        "thank you": "תודה",
+        thanks: "תודה",
+        please: "בבקשה",
+        yes: "כן",
+        no: "לא",
+        "how are you": "מה שלומך",
+        "i am fine": "אני בסדר",
+        "good morning": "בוקר טוב",
+        "good evening": "ערב טוב",
+        "good night": "לילה טוב",
+        goodbye: "להתראות",
+        bye: "להתראות",
+        "i love you": "אני אוהב אותך",
+        "what time is it": "מה השעה",
+        where: "איפה",
+        when: "מתי",
+        why: "למה",
+        how: "איך",
+        who: "מי",
+        what: "מה",
+        book: "ספר",
+        house: "בית",
+        home: "בית",
+        water: "מים",
+        food: "אוכל",
+        boy: "ילד",
+        girl: "ילדה",
+        child: "ילד",
+        mom: "אמא",
+        mother: "אמא",
+        dad: "אבא",
+        father: "אבא",
+        brother: "אח",
+        sister: "אחות",
+        friend: "חבר",
+        school: "בית ספר",
+        teacher: "מורה",
+        student: "תלמיד",
+      },
+    }
 
-    const words = text.split(" ")
-    const translated = words
-      .map((word) => {
-        const cleanWord = word.replace(/[.,!?]/g, "")
-        return translations[cleanWord] || word
+    const langPair = `${from}-${to}`
+    const dict = translations[langPair]
+
+    if (dict) {
+      const lowerText = text.toLowerCase()
+      if (dict[lowerText] || dict[text]) {
+        return dict[lowerText] || dict[text]
+      }
+
+      // Try word by word translation
+      const words = text.split(" ")
+      const translated = words.map((word) => {
+        const lowerWord = word.toLowerCase()
+        return dict[lowerWord] || dict[word] || word
       })
-      .join(" ")
+      return translated.join(" ")
+    }
 
-    outputText.value = translated
-    addPoints(2)
+    return "לא ניתן לתרגם כרגע. נסה שוב מאוחר יותר."
+  }
+
+  translateBtn?.addEventListener("click", translateText)
+
+  swapBtn?.addEventListener("click", () => {
+    const tempLang = sourceLang.value
+    sourceLang.value = targetLang.value
+    targetLang.value = tempLang
+
+    const tempText = sourceText.value
+    sourceText.value = targetText.value
+    targetText.value = tempText
+  })
+
+  // Auto-translate on typing (with debounce)
+  let translateTimeout
+  sourceText?.addEventListener("input", () => {
+    clearTimeout(translateTimeout)
+    translateTimeout = setTimeout(translateText, 500)
   })
 }
 
@@ -2291,8 +3886,10 @@ function updateStats() {
   if (!currentUser) return
 
   const toolsUsed = Number.parseInt(localStorage.getItem(`toolsUsed_${currentUser.id}`) || "0")
-  document.getElementById("toolsUsedStat")?.textContent &&
-    (document.getElementById("toolsUsedStat").textContent = toolsUsed)
+  const toolsUsedEl = document.getElementById("toolsUsedStat")
+  if (toolsUsedEl) {
+    toolsUsedEl.textContent = toolsUsed
+  }
 }
 
 // ========================================
